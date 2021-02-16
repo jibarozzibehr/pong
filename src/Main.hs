@@ -68,9 +68,23 @@ drawUI ui   =
     --        (str "Puntaje jugador 2: " <+> str (show (ui ^. game ^. scorePlayerTwo)))
     --]
     
-    [   
-       vLimit 24 $ drawGrid ui
+    [ rightBar ui
+    , leftBar ui
+    , vLimit 24 $ drawGrid ui
     ]
+
+
+rightBar :: UI -> Widget Name
+rightBar ui =
+    translateBy (ui ^. barPlayerTwo) $
+    border $ str "|\n|\n|\n|"
+
+
+
+leftBar :: UI -> Widget Name
+leftBar ui =
+    translateBy (ui ^. barPlayerOne) $
+    border $ str "|\n|\n|\n|"
     
 
 drawGrid :: UI -> Widget Name
@@ -89,6 +103,35 @@ handleEvent :: UI -> BrickEvent Name Tick -> EventM Name (Next UI)--
 handleEvent ui (VtyEvent (V.EvKey (V.KChar 'p') []))    = continue func
     where
         func = if ui ^. paused then ui & paused .~ False else ui & paused .~ True
+
+
+
+handleEvent ui (VtyEvent (V.EvKey V.KDown [])) = continue func2
+    where
+        func2 = ui & barPlayerTwo . locationRowL %~ (+ 1)
+
+--continue $ ui ^. game ^. st & barPlayerTwo.locationRowL .~ (+ 1)
+
+handleEvent ui (VtyEvent (V.EvKey V.KUp [])) = continue func2
+    where
+        func2 = ui & barPlayerTwo . locationRowL %~ (subtract 1)
+
+--continue $ ui ^. game ^. st & barPlayerTwo.locationRowL .~ (subtract 1)
+
+handleEvent ui (VtyEvent (V.EvKey (V.KChar 's') [])) = continue func2
+    where
+        func2 = ui & barPlayerOne . locationRowL %~ (+ 1)
+
+--continue $ ui ^. game ^. st & barPlayerTwo.locationRowL .~ (+ 1)
+handleEvent ui (VtyEvent (V.EvKey (V.KChar 'w') [])) = continue func2
+    where
+        func2 = ui & barPlayerOne . locationRowL %~ (subtract 1)
+
+
+
+
+
+
 
 theMap :: AttrMap
 theMap = attrMap
