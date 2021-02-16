@@ -46,6 +46,7 @@ data UI = UI
     ,   _paused :: Bool
     ,   _barPlayerOne   :: Location
     ,   _barPlayerTwo   :: Location
+    ,   _ball           :: Location
     }
 makeLenses ''UI
 
@@ -70,6 +71,7 @@ drawUI ui   =
     
     [ rightBar ui
     , leftBar ui
+    , ballDraw ui
     , vLimit 24 $ drawGrid ui
     ]
 
@@ -79,13 +81,15 @@ rightBar ui =
     translateBy (ui ^. barPlayerTwo) $
     border $ str "|\n|\n|\n|"
 
-
-
 leftBar :: UI -> Widget Name
 leftBar ui =
     translateBy (ui ^. barPlayerOne) $
     border $ str "|\n|\n|\n|"
     
+ballDraw :: UI -> Widget Name
+ballDraw ui =
+    translateBy (ui ^. ball) $
+    str "---"
 
 drawGrid :: UI -> Widget Name
 drawGrid ui =
@@ -140,7 +144,7 @@ handleEvent ui (VtyEvent (V.EvKey (V.KChar 'S') [])) = continue func2
 --continue $ ui ^. game ^. st & barPlayerTwo.locationRowL .~ (+ 1)
 handleEvent ui (VtyEvent (V.EvKey (V.KChar 'w') [])) = continue func2
 	where
-		func2 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
+	    func2 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
 handleEvent ui (VtyEvent (V.EvKey (V.KChar 'W') [])) = continue func2
 	where
 		func2 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
@@ -181,6 +185,7 @@ playGame = do
         , _paused  = False
         , _barPlayerOne = Location (2, 9)
         , _barPlayerTwo = Location (75, 9)
+        , _ball         = Location (39, 12)
         }
     return $ ui ^. game
     --  g <- withBorderStyle unicode $

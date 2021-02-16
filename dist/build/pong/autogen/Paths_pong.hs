@@ -30,7 +30,7 @@ version = Version [0,1,0,0] []
 bindir, libdir, dynlibdir, datadir, libexecdir, sysconfdir :: FilePath
 
 bindir     = "/home/juan/.cabal/bin"
-libdir     = "/home/juan/.cabal/lib/x86_64-linux-ghc-8.6.5/pong-0.1.0.0-16Km4v1NCq76Va35BmH5M5-pong"
+libdir     = "/home/juan/.cabal/lib/x86_64-linux-ghc-8.6.5/pong-0.1.0.0-16Km4v1NCq76Va35BmH5M5"
 dynlibdir  = "/home/juan/.cabal/lib/x86_64-linux-ghc-8.6.5"
 datadir    = "/home/juan/.cabal/share/x86_64-linux-ghc-8.6.5/pong-0.1.0.0"
 libexecdir = "/home/juan/.cabal/libexec/x86_64-linux-ghc-8.6.5/pong-0.1.0.0"
