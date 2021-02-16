@@ -99,34 +99,51 @@ drawGrid ui =
 
 
 
-handleEvent :: UI -> BrickEvent Name Tick -> EventM Name (Next UI)-- 
-handleEvent ui (VtyEvent (V.EvKey (V.KChar 'p') []))    = continue func
-    where
-        func = if ui ^. paused then ui & paused .~ False else ui & paused .~ True
+
+handleEvent :: UI -> BrickEvent Name Tick -> EventM Name (Next UI)
+
+handleEvent ui (VtyEvent (V.EvKey (V.KChar 'p') [])) = continue func
+	where
+		func = if ui ^. paused then ui & paused .~ False else ui & paused .~ True
 
 
 
 handleEvent ui (VtyEvent (V.EvKey V.KDown [])) = continue func2
-    where
-        func2 = ui & barPlayerTwo . locationRowL %~ (+ 1)
+	where
+		func2 = if (ui ^. barPlayerTwo . locationRowL) < 18 then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui
+
+
 
 --continue $ ui ^. game ^. st & barPlayerTwo.locationRowL .~ (+ 1)
 
+
+
 handleEvent ui (VtyEvent (V.EvKey V.KUp [])) = continue func2
-    where
-        func2 = ui & barPlayerTwo . locationRowL %~ (subtract 1)
+	where
+		func2 = if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ (subtract 1) else ui
+
+
 
 --continue $ ui ^. game ^. st & barPlayerTwo.locationRowL .~ (subtract 1)
 
+
+
 handleEvent ui (VtyEvent (V.EvKey (V.KChar 's') [])) = continue func2
-    where
-        func2 = ui & barPlayerOne . locationRowL %~ (+ 1)
+	where
+		func2 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
+handleEvent ui (VtyEvent (V.EvKey (V.KChar 'S') [])) = continue func2
+	where
+		func2 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
+
+
 
 --continue $ ui ^. game ^. st & barPlayerTwo.locationRowL .~ (+ 1)
 handleEvent ui (VtyEvent (V.EvKey (V.KChar 'w') [])) = continue func2
-    where
-        func2 = ui & barPlayerOne . locationRowL %~ (subtract 1)
-
+	where
+		func2 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
+handleEvent ui (VtyEvent (V.EvKey (V.KChar 'W') [])) = continue func2
+	where
+		func2 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
 
 
 
