@@ -101,36 +101,46 @@ drawGrid ui =
             --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
             False   -> (padLeft Max (str (show $ ui ^. game ^. scorePlayerOne)) <+> vBorder <+> padRight Max (str (show $ ui ^. game ^. scorePlayerTwo)))
 
+timeStep2 :: UI -> UI
+timeStep2 ui =
+    ui & barPlayerTwo . locationRowL %~ (+ 1)
 
+handleTick :: UI -> EventM Name (Next UI)
+handleTick ui =
+    if ui ^. paused
+    then continue ui
+    else do
+        continue $ timeStep2 ui
+        --next <- execStateT timeStep $ ui
+        --continue next
+    --else continue func3
+            --where func3 n = n & ball . locationRowL %~ (+ 1)
 
+--timeStep :: MonadIO m => UI -> PongT m ()
+--timeStep ui =
+--    ui & ball . locationRowL %~ (+ 1)
 
 handleEvent :: UI -> BrickEvent Name Tick -> EventM Name (Next UI)
+handleEvent ui (AppEvent Tick)  = handleTick ui
 
 handleEvent ui (VtyEvent (V.EvKey (V.KChar 'p') [])) = continue func
 	where
 		func = if ui ^. paused then ui & paused .~ False else ui & paused .~ True
-
-
+handleEvent ui (VtyEvent (V.EvKey (V.KChar 'P') [])) = continue func
+	where
+		func = if ui ^. paused then ui & paused .~ False else ui & paused .~ True
 
 handleEvent ui (VtyEvent (V.EvKey V.KDown [])) = continue func2
 	where
 		func2 = if (ui ^. barPlayerTwo . locationRowL) < 18 then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui
 
-
-
 --continue $ ui ^. game ^. st & barPlayerTwo.locationRowL .~ (+ 1)
-
-
 
 handleEvent ui (VtyEvent (V.EvKey V.KUp [])) = continue func2
 	where
 		func2 = if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ (subtract 1) else ui
 
-
-
 --continue $ ui ^. game ^. st & barPlayerTwo.locationRowL .~ (subtract 1)
-
-
 
 handleEvent ui (VtyEvent (V.EvKey (V.KChar 's') [])) = continue func2
 	where
@@ -139,8 +149,6 @@ handleEvent ui (VtyEvent (V.EvKey (V.KChar 'S') [])) = continue func2
 	where
 		func2 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
 
-
-
 --continue $ ui ^. game ^. st & barPlayerTwo.locationRowL .~ (+ 1)
 handleEvent ui (VtyEvent (V.EvKey (V.KChar 'w') [])) = continue func2
 	where
@@ -148,10 +156,6 @@ handleEvent ui (VtyEvent (V.EvKey (V.KChar 'w') [])) = continue func2
 handleEvent ui (VtyEvent (V.EvKey (V.KChar 'W') [])) = continue func2
 	where
 		func2 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
-
-
-
-
 
 
 theMap :: AttrMap
