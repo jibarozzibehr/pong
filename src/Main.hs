@@ -41,12 +41,19 @@ data Game = Game
     } deriving (Eq, Show)
 makeLenses ''Game
 
+data Xvalue = Derecha | Izquierda
+    deriving (Eq, Show)
+data Yvalue = Arriba | Abajo
+    deriving (Eq, Show)
+
 data UI = UI
     {   _game   :: Game
     ,   _paused :: Bool
     ,   _barPlayerOne   :: Location
     ,   _barPlayerTwo   :: Location
     ,   _ball           :: Location
+    ,   _xBall          :: Xvalue
+    ,   _yBall          :: Yvalue
     }
 makeLenses ''UI
 
@@ -93,7 +100,7 @@ ballDraw ui =
 
 drawGrid :: UI -> Widget Name
 drawGrid ui =
-    hLimit 84
+    hLimit 80
         $ withBorderStyle unicode
         $ borderWithLabel (str "Pong")
         $ case ui ^. paused of
@@ -101,16 +108,38 @@ drawGrid ui =
             --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
             False   -> (padLeft Max (str (show $ ui ^. game ^. scorePlayerOne)) <+> vBorder <+> padRight Max (str (show $ ui ^. game ^. scorePlayerTwo)))
 
-timeStep2 :: UI -> UI
-timeStep2 ui =
-    ui & barPlayerTwo . locationRowL %~ (+ 1)
+ballUp :: UI -> UI
+ballUp ui =
+    ui & ball . locationRowL %~ (subtract 1)
+    --ui & ball . locationColumnL %~ (subtract 1)
+
+ballLeft :: UI -> UI
+ballLeft ui =
+    --ui & ball . locationRowL %~ (subtract 1)
+    ui & ball . locationColumnL %~ (subtract 1)
+
+ballDown :: UI -> UI
+ballDown ui =
+    ui & ball . locationRowL %~ (+ 1)
+    --ui & ball . locationColumnL %~ (subtract 1)
+
+ballRight :: UI -> UI
+ballRight ui =
+    --ui & ball . locationRowL %~ (subtract 1)
+    ui & ball . locationColumnL %~ (+ 1)
 
 handleTick :: UI -> EventM Name (Next UI)
 handleTick ui =
     if ui ^. paused
     then continue ui
     else do
-        continue $ timeStep2 ui
+        if (ui ^. xBall) == Izquierda
+            then
+                if (ui ^. yBall) == Arriba then continue $ ballUp $ ballLeft ui
+                else continue $ ballDown $ ballLeft ui
+            else
+                if (ui ^. yBall) == Arriba then continue $ ballUp $ ballRight ui
+                else continue $ ballDown $ ballRight ui
         --next <- execStateT timeStep $ ui
         --continue next
     --else continue func3
@@ -170,26 +199,30 @@ barAttr = "barAttr"
 initGame :: IO Game
 initGame = do
     pure $ Game
-        {   _scorePlayerOne = 2
-        ,   _scorePlayerTwo = 15
+        {   _scorePlayerOne = 0
+        ,   _scorePlayerTwo = 0
         --,   _st             = St (Location (75, 9)) (Location (2, 9))
         }
 
 playGame :: IO Game
 playGame = do
-    let delay = 100
+    let delay = 200000
     chan <- newBChan 10
-    void . forkIO $ forever $ do
+    forkIO $ forever $ do
         writeBChan chan Tick
         threadDelay delay
     initialGame <- initGame
-    --  ui <- customMain (V.mkVty V.defaultConfig) (Just chan) app $ UI
-    ui <- defaultMain app $ UI
+    let buildVty = V.mkVty V.defaultConfig
+    initialVty <- buildVty
+    ui <- customMain initialVty buildVty (Just chan) app UI
+    --ui <- defaultMain app $ UI
         { _game    = initialGame
         , _paused  = False
         , _barPlayerOne = Location (2, 9)
         , _barPlayerTwo = Location (75, 9)
         , _ball         = Location (39, 12)
+        , _xBall        = Izquierda
+        , _yBall        = Arriba
         }
     return $ ui ^. game
     --  g <- withBorderStyle unicode $
