@@ -111,35 +111,37 @@ drawGrid ui =
 ballUp :: UI -> UI
 ballUp ui =
     ui & ball . locationRowL %~ (subtract 1)
-    --ui & ball . locationColumnL %~ (subtract 1)
 
 ballLeft :: UI -> UI
 ballLeft ui =
-    --ui & ball . locationRowL %~ (subtract 1)
     ui & ball . locationColumnL %~ (subtract 1)
 
 ballDown :: UI -> UI
 ballDown ui =
     ui & ball . locationRowL %~ (+ 1)
-    --ui & ball . locationColumnL %~ (subtract 1)
 
 ballRight :: UI -> UI
 ballRight ui =
-    --ui & ball . locationRowL %~ (subtract 1)
     ui & ball . locationColumnL %~ (+ 1)
 
 handleTick :: UI -> EventM Name (Next UI)
 handleTick ui =
-    if ui ^. paused
+    if ui ^. paused 
     then continue ui
-    else do
-        if (ui ^. xBall) == Izquierda
-            then
-                if (ui ^. yBall) == Arriba then continue $ ballUp $ ballLeft ui
-                else continue $ ballDown $ ballLeft ui
-            else
-                if (ui ^. yBall) == Arriba then continue $ ballUp $ ballRight ui
-                else continue $ ballDown $ ballRight ui
+    else case ui ^. ball . locationRowL of
+            0    -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
+            --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
+            23   -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
+            _      -> continue $ uiFinal $ tocaBarra ui
+
+        where uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
+              uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal ui' else ballDown $ uiHorizontal ui'
+
+
+
+
+
+
         --next <- execStateT timeStep $ ui
         --continue next
     --else continue func3
@@ -148,6 +150,24 @@ handleTick ui =
 --timeStep :: MonadIO m => UI -> PongT m ()
 --timeStep ui =
 --    ui & ball . locationRowL %~ (+ 1)
+
+tocaBarra :: UI -> UI
+tocaBarra ui = 
+    if ((ui ^. ball . locationRowL >= ui ^. barPlayerOne . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerOne . locationRowL)+5)) && (ui ^. ball . locationColumnL == (ui ^. barPlayerOne . locationColumnL)+2)
+    then ui & xBall .~ Derecha
+    else 
+        if ((ui ^. ball . locationRowL >= ui ^. barPlayerTwo . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerTwo . locationRowL)+5)) && (ui ^. ball . locationColumnL == (ui ^. barPlayerTwo . locationColumnL))
+        then ui & xBall .~ Izquierda
+        else ui
+
+
+bordeSuperior :: UI -> UI
+bordeSuperior ui = ui & yBall .~ Abajo
+
+
+bordeInferior :: UI -> UI
+bordeInferior ui = ui & yBall .~ Arriba
+
 
 handleEvent :: UI -> BrickEvent Name Tick -> EventM Name (Next UI)
 handleEvent ui (AppEvent Tick)  = handleTick ui
