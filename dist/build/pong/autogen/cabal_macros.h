@@ -22,15 +22,15 @@
   (major1) == 4 && (major2) == 12 && (minor) <= 0)
 #endif /* MIN_VERSION_base */
 
-/* package brick-0.60.1 */
+/* package brick-0.60.2 */
 #ifndef VERSION_brick
-#define VERSION_brick "0.60.1"
+#define VERSION_brick "0.60.2"
 #endif /* VERSION_brick */
 #ifndef MIN_VERSION_brick
 #define MIN_VERSION_brick(major1,major2,minor) (\
   (major1) <  0 || \
   (major1) == 0 && (major2) <  60 || \
-  (major1) == 0 && (major2) == 60 && (minor) <= 1)
+  (major1) == 0 && (major2) == 60 && (minor) <= 2)
 #endif /* MIN_VERSION_brick */
 
 /* package containers-0.6.0.1 */
@@ -44,26 +44,26 @@
   (major1) == 0 && (major2) == 6 && (minor) <= 0)
 #endif /* MIN_VERSION_containers */
 
-/* package lens-4.19.2 */
+/* package lens-5 */
 #ifndef VERSION_lens
-#define VERSION_lens "4.19.2"
+#define VERSION_lens "5"
 #endif /* VERSION_lens */
 #ifndef MIN_VERSION_lens
 #define MIN_VERSION_lens(major1,major2,minor) (\
-  (major1) <  4 || \
-  (major1) == 4 && (major2) <  19 || \
-  (major1) == 4 && (major2) == 19 && (minor) <= 2)
+  (major1) <  5 || \
+  (major1) == 5 && (major2) <  0 || \
+  (major1) == 5 && (major2) == 0 && (minor) <= 0)
 #endif /* MIN_VERSION_lens */
 
-/* package linear-1.21.4 */
+/* package linear-1.21.5 */
 #ifndef VERSION_linear
-#define VERSION_linear "1.21.4"
+#define VERSION_linear "1.21.5"
 #endif /* VERSION_linear */
 #ifndef MIN_VERSION_linear
 #define MIN_VERSION_linear(major1,major2,minor) (\
   (major1) <  1 || \
   (major1) == 1 && (major2) <  21 || \
-  (major1) == 1 && (major2) == 21 && (minor) <= 4)
+  (major1) == 1 && (major2) == 21 && (minor) <= 5)
 #endif /* MIN_VERSION_linear */
 
 /* package vty-5.32 */

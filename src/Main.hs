@@ -162,18 +162,44 @@ handleTick :: UI -> EventM Name (Next UI)
 handleTick ui =
     if ui ^. status == 0    --  Si está pausado
     then continue ui
-    else case ui ^. ball . locationRowL of
-            0   -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
-            --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
-            23  -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
-            _   -> continue $ uiFinal $ tocaBarra ui
+    else 
+        if ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL 
+        then continue  $ reset $ pointTwo ui
+        else if ui ^. ball . locationColumnL > ui ^. barPlayerTwo . locationColumnL 
+        then continue $ reset $ pointOne ui
+        else
+            case ui ^. ball . locationRowL of
+                0   -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
+                --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
+                23  -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
+                _   -> continue $ uiFinal $ tocaBarra ui
 
-            where
-                uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
-                uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal ui' else ballDown $ uiHorizontal ui'
+                where
+                    uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
+                    uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal ui' else ballDown $ uiHorizontal ui'
 
 
 
+        
+
+
+pointOne :: UI -> UI
+pointOne ui = ui & game . scorePlayerOne %~ (+ 1)
+
+pointTwo :: UI -> UI
+pointTwo ui = ui & game . scorePlayerTwo %~ (+ 1)
+
+reset :: UI -> UI
+reset ui = UI
+    { _game             = ui ^. game
+    , _barPlayerOne     = Location (2, 9)
+    , _barPlayerTwo     = Location (75, 9)
+    , _ball             = Location (39, 12)
+    , _xBall            = Izquierda
+    , _yBall            = Arriba
+    , _status           = ui ^. status
+    , _previousStatus   = ui ^. previousStatus
+    }
 
 
 
@@ -188,10 +214,10 @@ handleTick ui =
 
 tocaBarra :: UI -> UI
 tocaBarra ui = 
-    if ((ui ^. ball . locationRowL >= ui ^. barPlayerOne . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerOne . locationRowL)+5)) && (ui ^. ball . locationColumnL == (ui ^. barPlayerOne . locationColumnL)+2)
+    if ((ui ^. ball . locationRowL >= ui ^. barPlayerOne . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerOne . locationRowL)+5)) && ((ui ^. ball . locationColumnL >= ui ^. barPlayerOne . locationColumnL) && (ui ^. ball . locationColumnL <= (ui ^. barPlayerOne . locationColumnL)+2))
     then ui & xBall .~ Derecha
     else 
-        if ((ui ^. ball . locationRowL >= ui ^. barPlayerTwo . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerTwo . locationRowL)+5)) && (ui ^. ball . locationColumnL == (ui ^. barPlayerTwo . locationColumnL)-2)
+        if ((ui ^. ball . locationRowL >= ui ^. barPlayerTwo . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerTwo . locationRowL)+5)) && ((ui ^. ball . locationColumnL <= ui ^. barPlayerTwo . locationColumnL) && (ui ^. ball . locationColumnL >= (ui ^. barPlayerTwo . locationColumnL)-2))
         then ui & xBall .~ Izquierda
         else ui
 
