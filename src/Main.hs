@@ -11,10 +11,8 @@ import Brick.Widgets.Center
 import Brick.Widgets.Border
 import Brick.Widgets.Border.Style
 import Control.Lens
-import Data.Map
 import qualified Graphics.Vty as V
-import Linear.V2 (V2(..), _y)
-import Control.Monad (void, forever)
+import Control.Monad (forever)
 import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent (threadDelay, forkIO)
 import Control.Concurrent.STM
@@ -24,10 +22,6 @@ type Name = ()
 
 data BlockType = Bar | Ball
     deriving (Eq, Show, Enum)
-
-type Coord = V2 Int
-
-type Board = Map Coord BlockType
 
 -- data St = St
 --     {   _barPlayerOne   :: Location
@@ -39,7 +33,6 @@ data Game = Game
     {   _scorePlayerOne :: Int
     ,   _scorePlayerTwo :: Int
     --,   _st             :: St
-    ,   _board          :: Board
     } deriving (Eq, Show)
 makeLenses ''Game
 
@@ -241,6 +234,7 @@ reset ui = UI
     , _yBall            = Arriba
     , _status           = ui ^. status
     , _previousStatus   = ui ^. previousStatus
+    , _level            = ui ^. level
     }
 
 
@@ -328,7 +322,7 @@ handleEvent ui event =
                     --  Cualquier otra tecla no hace nada
                     _                                   -> continue ui
                     where
-                        pause ui = ui & status .~ 0
+                        pause ui' = ui' & status .~ 0
                         func2 = if (ui ^. barPlayerTwo . locationRowL) < 18 then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui     
                         func3 = if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ (subtract 1) else ui
                         func4 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
@@ -357,9 +351,7 @@ handleEvent ui event =
                     (VtyEvent (V.EvKey (V.KChar 'W') []))   -> continue func5
                     _                                       -> continue ui
                     where
-                        pause ui = ui & status .~ 0
-                        func2 = if (ui ^. barPlayerTwo . locationRowL) < 18 then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui     
-                        func3 = if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ (subtract 1) else ui
+                        pause ui' = ui' & status .~ 0
                         func4 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
                         func5 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
         _   ->  halt ui
@@ -459,7 +451,7 @@ handleEndGame s = do
   case mhs of
     Nothing -> putStrLn $ "Tu puntaje es " ++ show s
     Just hs -> if s <= hs then justShowScore else newHighScore
-    _       -> justShowScore
+    --_       -> justShowScore
   where
     justShowScore = putStrLn $ "Your final score: " ++ show s
     newHighScore = do
