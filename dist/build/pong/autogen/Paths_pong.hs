@@ -29,12 +29,12 @@ version :: Version
 version = Version [0,1,0,0] []
 bindir, libdir, dynlibdir, datadir, libexecdir, sysconfdir :: FilePath
 
-bindir     = "/home/butros/.cabal/bin"
-libdir     = "/home/butros/.cabal/lib/x86_64-linux-ghc-8.6.5/pong-0.1.0.0-16Km4v1NCq76Va35BmH5M5"
-dynlibdir  = "/home/butros/.cabal/lib/x86_64-linux-ghc-8.6.5"
-datadir    = "/home/butros/.cabal/share/x86_64-linux-ghc-8.6.5/pong-0.1.0.0"
-libexecdir = "/home/butros/.cabal/libexec/x86_64-linux-ghc-8.6.5/pong-0.1.0.0"
-sysconfdir = "/home/butros/.cabal/etc"
+bindir     = "/home/juan/.cabal/bin"
+libdir     = "/home/juan/.cabal/lib/x86_64-linux-ghc-8.6.5/pong-0.1.0.0-16Km4v1NCq76Va35BmH5M5"
+dynlibdir  = "/home/juan/.cabal/lib/x86_64-linux-ghc-8.6.5"
+datadir    = "/home/juan/.cabal/share/x86_64-linux-ghc-8.6.5/pong-0.1.0.0"
+libexecdir = "/home/juan/.cabal/libexec/x86_64-linux-ghc-8.6.5/pong-0.1.0.0"
+sysconfdir = "/home/juan/.cabal/etc"
 
 getBinDir, getLibDir, getDynLibDir, getDataDir, getLibexecDir, getSysconfDir :: IO FilePath
 getBinDir = catchIO (getEnv "pong_bindir") (\_ -> return bindir)

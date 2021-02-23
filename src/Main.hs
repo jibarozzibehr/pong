@@ -15,7 +15,9 @@ import Data.Map
 import qualified Graphics.Vty as V
 import Linear.V2 (V2(..), _y)
 import Control.Monad (void, forever)
+import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent (threadDelay, forkIO)
+import Control.Concurrent.STM
 
 
 type Name = ()
@@ -55,6 +57,7 @@ data UI = UI
     ,   _yBall          :: Yvalue
     ,   _status         :: Int      --  0: Pausa, 1: Inicio, 2: Elegir nivel, 3: Jugando
     ,   _previousStatus :: Int      --  1 por defecto.
+    ,   _level          :: TVar Int
     }
 makeLenses ''UI
 
@@ -71,41 +74,73 @@ app = App
 
 drawUI :: UI -> [Widget Name]
 drawUI ui   =
-    --[   setAvailableSize (80, 24) $ vCenter $
-    --    withBorderStyle unicode $
-    --    borderWithLabel (str "Pong") $ (str "Puntaje jugador 1: " <+> str (show (ui ^. game ^. scorePlayerOne))) <+> 
-    --        (str "Puntaje jugador 2: " <+> str (show (ui ^. game ^. scorePlayerTwo)))
-    --]
     case ui ^. status of
-        0   -> 
-                [paused]
-        1   ->
-                [mainScreen]
-        3   ->
-                [   rightBar ui
+        0   ->  [paused]
+        1   ->  [mainScreen]
+        2   ->  [selectClassicLevel]
+        3   ->  [   rightBar ui
                 ,   leftBar ui
                 ,   ballDraw ui
                 ,   playing
                 ]
+        4   ->  [selectMachineLevel]
+        
+        5   ->  [   rightBar ui         --  
+                ,   leftBar ui
+                ,   ballDraw ui
+                ,   playing
+                ]
+        --6 --  selectWallLevel
+        --7 --  playingWall
+        --8 --  Instructions
+        
+        _   ->  [emptyWidget]
         where
-            paused  = hLimit 80
-                    $ withBorderStyle unicode
-                    $ borderWithLabel (str "Pong")
-                    $ center $ str "Game paused"
-            playing = hLimit 80
-                    $ withBorderStyle unicode
-                    $ borderWithLabel (str "Pong")
-                    $ (padLeft Max (str (show $ ui ^. game ^. scorePlayerOne)) <+> vBorder <+> padRight Max (str (show $ ui ^. game ^. scorePlayerTwo)))
-            mainScreen  =   (   hLimit 80
-                                $ withBorderStyle unicode
-                                $ border
-                                $ center pongTitle
-                                <=> (hCenter $ str "a version by Butros Asis and Juan Barozzi")
-                                <=> (hCenter $ str "\n(1): Play classic\n(2): Play against the machine\n(3): Play against the wall")
-                            )
-                            
+            paused              =
+                hLimit 80
+                $ vLimit 24
+                $ withBorderStyle unicode
+                $ borderWithLabel (str "Pong")
+                $ center $ str "Game paused"
 
-                    
+            playing             =
+                hLimit 80
+                $ vLimit 24
+                $ withBorderStyle unicode
+                $ borderWithLabel (str "Pong")
+                $ (padLeft Max (str (show $ ui ^. game ^. scorePlayerOne)) <+> vBorder <+> padRight Max (str (show $ ui ^. game ^. scorePlayerTwo)))
+
+            mainScreen          =
+                hLimit 80
+                $ vLimit 24
+                $ withBorderStyle unicode
+                $ border
+                $ padTopBottom 2
+                $ hCenter pongTitle
+                <=> (hCenter $ str "\na version by Butros Asis and Juan Barozzi")
+                <=> (padBottom Max $ hCenter $ str "\n\n(1): Play classic\n(2): Play against the machine\n(3): Play against the wall")  
+
+            selectClassicLevel  =
+                hLimit 80
+                $ vLimit 24
+                $ withBorderStyle unicode
+                $ border
+                $ padTopBottom 2
+                $ hCenter classicTitle
+                <=> (hCenter $ str "The Pong version you already know. 1v1.")
+                <=> (hCenter $ str "\n\n\n\n\nChoose ball speed:")
+                <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!"))
+
+            selectMachineLevel  =
+                hLimit 80
+                $ vLimit 24
+                $ withBorderStyle unicode
+                $ border
+                $ padTopBottom 2
+                $ hCenter machineTitle
+                <=> (hCenter $ str "\nWill you ever win?")
+                <=> (hCenter $ str "\n\n\n\nChoose ball speed:")
+                <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!"))
     
     
     --[ rightBar ui
@@ -116,6 +151,12 @@ drawUI ui   =
 
 pongTitle :: Widget Name
 pongTitle = str "         _               _                _                   _        \n        /\\ \\            /\\ \\             /\\ \\     _          /\\ \\      \n       /  \\ \\          /  \\ \\           /  \\ \\   /\\_\\       /  \\ \\     \n      / /\\ \\ \\        / /\\ \\ \\         / /\\ \\ \\_/ / /      / /\\ \\_\\    \n     / / /\\ \\_\\      / / /\\ \\ \\       / / /\\ \\___/ /      / / /\\/_/    \n    / / /_/ / /     / / /  \\ \\_\\     / / /  \\/____/      / / / ______  \n   / / /__\\/ /     / / /   / / /    / / /    / / /      / / / /\\_____\\ \n  / / /_____/     / / /   / / /    / / /    / / /      / / /  \\/____ / \n / / /           / / /___/ / /    / / /    / / /      / / /_____/ / /  \n/ / /           / / /____\\/ /    / / /    / / /      / / /______\\/ /   \n\\/_/            \\/_________/     \\/_/     \\/_/       \\/___________/     \n"
+
+classicTitle :: Widget Name
+classicTitle = str "░█████╗░██╗░░░░░░█████╗░░██████╗░██████╗██╗░█████╗░\n██╔══██╗██║░░░░░██╔══██╗██╔════╝██╔════╝██║██╔══██╗\n██║░░╚═╝██║░░░░░███████║╚█████╗░╚█████╗░██║██║░░╚═╝\n██║░░██╗██║░░░░░██╔══██║░╚═══██╗░╚═══██╗██║██║░░██╗\n╚█████╔╝███████╗██║░░██║██████╔╝██████╔╝██║╚█████╔╝\n░╚════╝░╚══════╝╚═╝░░╚═╝╚═════╝░╚═════╝░╚═╝░╚════╝░"
+
+machineTitle :: Widget Name
+machineTitle = str "Play against the\n __    __   ______   ______   __  __   __   __   __   ______    \n/\\ \"-./  \\ /\\  __ \\ /\\  ___\\ /\\ \\_\\ \\ /\\ \\ /\\ \"-.\\ \\ /\\  ___\\   \n\\ \\ \\-./\\ \\\\ \\  __ \\\\ \\ \\____\\ \\  __ \\\\ \\ \\\\ \\ \\-.  \\\\ \\  __\\   \n \\ \\_\\ \\ \\_\\\\ \\_\\ \\_\\\\ \\_____\\\\ \\_\\ \\_\\\\ \\_\\\\ \\_\\\\\"\\_\\\\ \\_____\\ \n  \\/_/  \\/_/ \\/_/\\/_/ \\/_____/ \\/_/\\/_/ \\/_/ \\/_/ \\/_/ \\/_____/ "
 
 rightBar :: UI -> Widget Name
 rightBar ui =
@@ -184,6 +225,7 @@ handleTick ui =
 
 
 pointOne :: UI -> UI
+--pointOne ui = if ui & game . scorePlayerOne < 6 then ui & game . scorePlayerOne %~ (+ 1) else ui & status 
 pointOne ui = ui & game . scorePlayerOne %~ (+ 1)
 
 pointTwo :: UI -> UI
@@ -229,21 +271,25 @@ bordeSuperior ui = ui & yBall .~ Abajo
 bordeInferior :: UI -> UI
 bordeInferior ui = ui & yBall .~ Arriba
 
+--  Guarda el estado actual como previo.
+setPreviousStatus :: UI -> UI
+setPreviousStatus ui =
+    ui & previousStatus .~ (ui ^. status)
 
 handleEvent :: UI -> BrickEvent Name Tick -> EventM Name (Next UI)
 handleEvent ui event =
     case ui ^. status of
         --  Juego pausado
-        0   -> case event of
+        0   ->  case event of
                     (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue pause
                     (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue pause
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
                     _                                       -> continue ui
                     where
-                        pause = ui & status .~ (ui ^. previousStatus)    -- Acá debería ir al estado anterior.
+                        pause = ui & status .~ (ui ^. previousStatus)   --  Vuelve al estado en el que estaba.
         --  Pantalla principal
-        1   -> case event of
+        1   ->  case event of
                     (VtyEvent (V.EvKey (V.KChar '1') []))   -> continue playClassic
                     (VtyEvent (V.EvKey (V.KChar '2') []))   -> continue playMachine
                     (VtyEvent (V.EvKey (V.KChar '3') []))   -> continue playWall
@@ -251,15 +297,23 @@ handleEvent ui event =
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
                     _                                       -> continue ui
                     where
-                        playClassic = ui & status .~ 3
-                        playMachine = undefined
+                        playClassic = ui & status .~ 2
+                        playMachine = ui & status .~ 4
                         playWall    = undefined
-        --  Elegir nivel
-        2   -> continue ui
-        --  Jugando classic
-        3   -> case event of
-                    (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue pause
-                    (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue pause
+        --  Elegir nivel de classic
+        --2   -> continue ui
+        2   ->  case event of
+                    (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 200000 3
+                    (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 100000 3
+                    (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 80000  3
+                    (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
+                    (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
+                    _                                       -> continue ui
+        --  Jugando Classic
+        3   ->  case event of
+                    --  Pausa y quitar juego
+                    (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue $ pause $ setPreviousStatus ui
+                    (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue $ pause $ setPreviousStatus ui
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
                     --  Tick
@@ -274,13 +328,46 @@ handleEvent ui event =
                     --  Cualquier otra tecla no hace nada
                     _                                   -> continue ui
                     where
-                        pause = ui & status .~ 0
+                        pause ui = ui & status .~ 0
                         func2 = if (ui ^. barPlayerTwo . locationRowL) < 18 then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui     
                         func3 = if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ (subtract 1) else ui
                         func4 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
                         func5 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
-        _   -> halt ui
-                    
+        --  Elegir nivel de Against the Machine
+        4   ->  case event of
+                    (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 200000 5
+                    (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 100000 5
+                    (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 80000 5
+                    (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
+                    (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
+                    _                                       -> continue ui
+        --  Jugando Against the Machine
+        5   ->  case event of
+                    --  Pausa y quitar juego
+                    (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue $ pause $ setPreviousStatus ui
+                    (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue $ pause $ setPreviousStatus ui
+                    (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
+                    (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
+                    --  Tick
+                    (AppEvent Tick)                         -> handleTick ui    -- Acá tiene que ir una función diferente para Against the Machine.
+                    --  Controles
+                    (VtyEvent (V.EvKey (V.KChar 's') []))   -> continue func4
+                    (VtyEvent (V.EvKey (V.KChar 'S') []))   -> continue func4
+                    (VtyEvent (V.EvKey (V.KChar 'w') []))   -> continue func5
+                    (VtyEvent (V.EvKey (V.KChar 'W') []))   -> continue func5
+                    _                                       -> continue ui
+                    where
+                        pause ui = ui & status .~ 0
+                        func2 = if (ui ^. barPlayerTwo . locationRowL) < 18 then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui     
+                        func3 = if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ (subtract 1) else ui
+                        func4 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
+                        func5 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
+        _   ->  halt ui
+
+setLevel :: UI -> Int -> Int -> EventM n (Next UI)
+setLevel ui lvl mode = do
+    liftIO $ atomically $ writeTVar (ui ^. level) lvl
+    continue $ ui & status .~ mode
 
 --  handleEvent ui (AppEvent Tick)  = handleTick ui
 
@@ -334,13 +421,18 @@ initGame = do
         --,   _st             = St (Location (75, 9)) (Location (2, 9))
         }
 
+initialSpeed :: Int
+initialSpeed = 200000
+
 playGame :: IO Game
 playGame = do
-    let delay = 200000
+    --  let delay = 200000
     chan <- newBChan 10
+    tv   <- atomically $ newTVar (initialSpeed)
     forkIO $ forever $ do
         writeBChan chan Tick
-        threadDelay delay
+        int <- atomically $ readTVar tv
+        threadDelay int
     initialGame <- initGame
     let buildVty = V.mkVty V.defaultConfig
     initialVty <- buildVty
@@ -353,7 +445,8 @@ playGame = do
         , _xBall            = Izquierda
         , _yBall            = Arriba
         , _status           = 1
-        , _previousStatus   = 3
+        , _previousStatus   = 1
+        , _level            = tv
         }
     return $ ui ^. game
     --  g <- withBorderStyle unicode $
