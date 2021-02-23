@@ -1,3 +1,15 @@
+--Back Button in every screen
+--Reset stats when goes back
+--Game over screen
+--Fix selectWall Screen
+--Instructions Screen
+--Fix HLint suggestions
+--Set ball direction randomly on the points but the first one
+--Draw the ball and bars properly
+--End the game when somebody gets 7 points
+
+
+
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -16,6 +28,7 @@ import Control.Monad (forever)
 import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent (threadDelay, forkIO)
 import Control.Concurrent.STM
+import System.Random
 
 
 type Name = ()
@@ -83,6 +96,13 @@ drawUI ui   =
                 ,   ballDraw ui
                 ,   playing
                 ]
+
+        6   ->  [selectWallLevel]
+        
+        7   ->  [   leftBar ui
+                ,   ballDraw ui
+                ,   playing
+                ]
         --6 --  selectWallLevel
         --7 --  playingWall
         --8 --  Instructions
@@ -134,6 +154,17 @@ drawUI ui   =
                 <=> (hCenter $ str "\nWill you ever win?")
                 <=> (hCenter $ str "\n\n\n\nChoose ball speed:")
                 <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!"))
+
+            selectWallLevel  =
+                hLimit 80
+                $ vLimit 24
+                $ withBorderStyle unicode
+                $ border
+                $ padTopBottom 2
+                $ hCenter machineTitle
+                <=> (hCenter $ str "\nWill you ever win?")
+                <=> (hCenter $ str "\n\n\n\nChoose ball speed:")
+                <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!"))
     
     
     --[ rightBar ui
@@ -175,6 +206,89 @@ ballDraw ui =
 --              True    -> center $ str "Juego en pausa"
 --              --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
 --              False   -> (padLeft Max (str (show $ ui ^. game ^. scorePlayerOne)) <+> vBorder <+> padRight Max (str (show $ ui ^. game ^. scorePlayerTwo)))
+
+
+
+
+handleTickMachine :: UI -> EventM Name (Next UI)
+handleTickMachine ui =
+    if ui ^. status == 0    --  Si está pausado
+    then continue ui
+    else 
+        if ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL 
+        then continue  $ reset $ pointTwo ui
+        else if ui ^. ball . locationColumnL > ui ^. barPlayerTwo . locationColumnL 
+        then continue $ reset $ pointOne ui
+        else
+            case ui ^. ball . locationRowL of
+                0   -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
+                --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
+                23  -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
+                _   -> continue $ uiFinal $ tocaBarra ui
+
+                where
+                    uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
+                    uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal $ machineBarUp ui' else ballDown $ uiHorizontal $ machineBarDown ui'
+
+
+
+
+
+
+
+machineBarUp :: UI -> UI
+machineBarUp ui =
+    if ((ui ^. xBall) == Derecha) && ((ui ^. ball . locationColumnL) > 39)
+    then
+        if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ (subtract 1) else ui
+    else
+        ui
+
+
+
+machineBarDown :: UI -> UI
+machineBarDown ui =
+    if ((ui ^. xBall) == Derecha) && ((ui ^. ball . locationColumnL) > 39)
+    then
+        if (ui ^. barPlayerTwo . locationRowL) < 18 then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui
+    else
+        ui
+
+
+
+
+
+
+
+    
+
+
+handleTickWall :: UI -> EventM Name (Next UI)
+handleTickWall ui =
+    if ui ^. status == 0    --  Si está pausado
+    then continue ui
+    else 
+        if ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL 
+        then continue $ reset $ pointTwo ui                                         --GAME OVER
+        else 
+            if ui ^. ball . locationColumnL == 78
+            then continue $ uiFinal $ pointOne ui & xBall .~ Izquierda
+            else
+                case ui ^. ball . locationRowL of
+                    0   -> continue $ uiFinal $ bordeSuperior $ tocaBarraWall ui
+                    --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
+                    23  -> continue $ uiFinal $ bordeInferior $ tocaBarraWall ui
+                    _   -> continue $ uiFinal $ tocaBarraWall ui
+
+                    where
+                        uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
+                        uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal ui' else ballDown $ uiHorizontal ui'
+
+
+
+
+
+
 
 ballUp :: UI -> UI
 ballUp ui =
@@ -227,17 +341,28 @@ pointTwo ui = ui & game . scorePlayerTwo %~ (+ 1)
 reset :: UI -> UI
 reset ui = UI
     { _game             = ui ^. game
-    , _barPlayerOne     = Location (2, 9)
-    , _barPlayerTwo     = Location (75, 9)
+    , _barPlayerOne     = Location (1, 9)
+    , _barPlayerTwo     = Location (76, 9)
     , _ball             = Location (39, 12)
-    , _xBall            = Izquierda
+    , _xBall            = Izquierda                      --newX randomNumber
     , _yBall            = Arriba
     , _status           = ui ^. status
     , _previousStatus   = ui ^. previousStatus
     , _level            = ui ^. level
     }
+       -- where 
+       --     randomNumber = do
+       --         xRand <- randomRIO (0,1)
+       --         return xRand
 
 
+
+
+
+
+
+
+--randomRIO (1, 10)
 
         --next <- execStateT timeStep $ ui
         --continue next
@@ -256,6 +381,16 @@ tocaBarra ui =
         if ((ui ^. ball . locationRowL >= ui ^. barPlayerTwo . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerTwo . locationRowL)+5)) && ((ui ^. ball . locationColumnL <= ui ^. barPlayerTwo . locationColumnL) && (ui ^. ball . locationColumnL >= (ui ^. barPlayerTwo . locationColumnL)-2))
         then ui & xBall .~ Izquierda
         else ui
+
+
+
+tocaBarraWall :: UI -> UI
+tocaBarraWall ui = 
+    if ((ui ^. ball . locationRowL >= ui ^. barPlayerOne . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerOne . locationRowL)+5)) && ((ui ^. ball . locationColumnL >= ui ^. barPlayerOne . locationColumnL) && (ui ^. ball . locationColumnL <= (ui ^. barPlayerOne . locationColumnL)+2))
+    then ui & xBall .~ Derecha
+    else 
+        ui
+
 
 
 bordeSuperior :: UI -> UI
@@ -293,7 +428,7 @@ handleEvent ui event =
                     where
                         playClassic = ui & status .~ 2
                         playMachine = ui & status .~ 4
-                        playWall    = undefined
+                        playWall    = ui & status .~ 6
         --  Elegir nivel de classic
         --2   -> continue ui
         2   ->  case event of
@@ -343,7 +478,7 @@ handleEvent ui event =
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
                     --  Tick
-                    (AppEvent Tick)                         -> handleTick ui    -- Acá tiene que ir una función diferente para Against the Machine.
+                    (AppEvent Tick)                         -> handleTickMachine ui 
                     --  Controles
                     (VtyEvent (V.EvKey (V.KChar 's') []))   -> continue func4
                     (VtyEvent (V.EvKey (V.KChar 'S') []))   -> continue func4
@@ -354,6 +489,35 @@ handleEvent ui event =
                         pause ui' = ui' & status .~ 0
                         func4 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
                         func5 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
+
+         --  Elegir nivel de Against the Machine
+        6   ->  case event of
+                    (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 200000 7
+                    (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 100000 7
+                    (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 80000 7
+                    (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
+                    (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
+                    _                                       -> continue ui
+        --  Jugando Against the Machine
+        7   ->  case event of
+                    --  Pausa y quitar juego
+                    (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue $ pause $ setPreviousStatus ui
+                    (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue $ pause $ setPreviousStatus ui
+                    (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
+                    (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
+                    --  Tick
+                    (AppEvent Tick)                         -> handleTickWall ui 
+                    --  Controles
+                    (VtyEvent (V.EvKey (V.KChar 's') []))   -> continue func4
+                    (VtyEvent (V.EvKey (V.KChar 'S') []))   -> continue func4
+                    (VtyEvent (V.EvKey (V.KChar 'w') []))   -> continue func5
+                    (VtyEvent (V.EvKey (V.KChar 'W') []))   -> continue func5
+                    _                                       -> continue ui
+                    where
+                        pause ui' = ui' & status .~ 0
+                        func4 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
+                        func5 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
+
         _   ->  halt ui
 
 setLevel :: UI -> Int -> Int -> EventM n (Next UI)
@@ -421,21 +585,23 @@ playGame = do
     --  let delay = 200000
     chan <- newBChan 10
     tv   <- atomically $ newTVar (initialSpeed)
-    forkIO $ forever $ do
+    _ <- forkIO $ forever $ do
         writeBChan chan Tick
         int <- atomically $ readTVar tv
         threadDelay int
     initialGame <- initGame
     let buildVty = V.mkVty V.defaultConfig
     initialVty <- buildVty
+    xRand <- randomRIO (0,1) 
+    yRand <- randomRIO (0,1) 
     ui <- customMain initialVty buildVty (Just chan) app UI
     --ui <- defaultMain app $ UI
         { _game             = initialGame
-        , _barPlayerOne     = Location (2, 9)
-        , _barPlayerTwo     = Location (75, 9)
+        , _barPlayerOne     = Location (1, 9)
+        , _barPlayerTwo     = Location (76, 9)
         , _ball             = Location (39, 12)
-        , _xBall            = Izquierda
-        , _yBall            = Arriba
+        , _xBall            = newX xRand
+        , _yBall            = newY yRand
         , _status           = 1
         , _previousStatus   = 1
         , _level            = tv
@@ -445,24 +611,22 @@ playGame = do
     --  borderWithLabel (str "Pong") $
     --  (center (str " ") <+> vBorder <+> center (str " "))
 
-handleEndGame :: Int -> IO ()
-handleEndGame s = do
-  mhs <- getHighScore
-  case mhs of
-    Nothing -> putStrLn $ "Tu puntaje es " ++ show s
-    Just hs -> if s <= hs then justShowScore else newHighScore
-    --_       -> justShowScore
-  where
-    justShowScore = putStrLn $ "Your final score: " ++ show s
-    newHighScore = do
-      putStrLn $ "Congrats! You just got the new highest score: " ++ show s
-      -- setHighScore s
 
-getHighScore :: IO (Maybe Int)
-getHighScore = do
-    return $ Just 45
+newX :: Int -> Xvalue
+newX xRand = 
+    if xRand == 0
+        then Derecha
+        else Izquierda
+
+
+newY :: Int -> Yvalue
+newY yRand = 
+    if yRand == 0
+        then Arriba
+        else Abajo
+
 
 main :: IO ()
 main = do
-    g <- playGame
-    handleEndGame (_scorePlayerOne g)
+    _ <- playGame
+    putStrLn $ "Thanks for playing Pong!"
