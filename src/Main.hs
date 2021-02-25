@@ -56,14 +56,14 @@ data Yvalue = Arriba | Abajo
 
 data UI = UI
     {   _game   :: Game
-    ,   _barPlayerOne   :: Location
-    ,   _barPlayerTwo   :: Location
-    ,   _ball           :: Location
-    ,   _xBall          :: Xvalue
-    ,   _yBall          :: Yvalue
-    ,   _status         :: Int      --  0: Pausa, 1: Inicio, 2: Elegir nivel, 3: Jugando
-    ,   _previousStatus :: Int      --  1 por defecto.
-    ,   _level          :: TVar Int
+    ,   _barPlayerOne       :: Location
+    ,   _barPlayerTwo       :: Location
+    ,   _ball               :: Location
+    ,   _xBall              :: Xvalue
+    ,   _yBall              :: Yvalue
+    ,   _status             :: Int      --  0: Pausa, 1: Inicio, 2: Elegir nivel, 3: Jugando
+    ,   _previousStatus     :: Int      --  1 por defecto. Se usa para poner en pausa el juego y volver al mismo.
+    ,   _level              :: TVar Int
     }
 makeLenses ''UI
 
@@ -138,33 +138,34 @@ drawUI ui   =
                 $ vLimit 24
                 $ withBorderStyle unicode
                 $ border
-                $ padTopBottom 2
+                $ padTopBottom 1
                 $ hCenter classicTitle
                 <=> (hCenter $ str "The Pong version you already know. 1v1.")
                 <=> (hCenter $ str "\n\n\n\n\nChoose ball speed:")
-                <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!"))
+                <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
 
             selectMachineLevel  =
                 hLimit 80
                 $ vLimit 24
                 $ withBorderStyle unicode
                 $ border
-                $ padTopBottom 2
+                $ padTopBottom 1
                 $ hCenter machineTitle
                 <=> (hCenter $ str "\nWill you ever win?")
                 <=> (hCenter $ str "\n\n\n\nChoose ball speed:")
-                <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!"))
+                <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
 
             selectWallLevel  =
                 hLimit 80
                 $ vLimit 24
                 $ withBorderStyle unicode
                 $ border
-                $ padTopBottom 2
-                $ hCenter machineTitle
-                <=> (hCenter $ str "\nWill you ever win?")
+                $ padTopBottom 1
+                $ padBottom (Pad 1) (hCenter $ str "\nPlay against the")
+                <=> hCenter wallTitle
+                -- <=> (hCenter $ str "\nWill you ever win?")
                 <=> (hCenter $ str "\n\n\n\nChoose ball speed:")
-                <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!"))
+                <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
     
     
     --[ rightBar ui
@@ -181,6 +182,9 @@ classicTitle = str "░█████╗░██╗░░░░░░███
 
 machineTitle :: Widget Name
 machineTitle = str "Play against the\n __    __   ______   ______   __  __   __   __   __   ______    \n/\\ \"-./  \\ /\\  __ \\ /\\  ___\\ /\\ \\_\\ \\ /\\ \\ /\\ \"-.\\ \\ /\\  ___\\   \n\\ \\ \\-./\\ \\\\ \\  __ \\\\ \\ \\____\\ \\  __ \\\\ \\ \\\\ \\ \\-.  \\\\ \\  __\\   \n \\ \\_\\ \\ \\_\\\\ \\_\\ \\_\\\\ \\_____\\\\ \\_\\ \\_\\\\ \\_\\\\ \\_\\\\\"\\_\\\\ \\_____\\ \n  \\/_/  \\/_/ \\/_/\\/_/ \\/_____/ \\/_/\\/_/ \\/_/ \\/_/ \\/_/ \\/_____/ "
+
+wallTitle :: Widget Name
+wallTitle = str "  _/          _/    _/_/    _/        _/     \n _/          _/  _/    _/  _/        _/      \n_/    _/    _/  _/_/_/_/  _/        _/       \n _/  _/  _/    _/    _/  _/        _/        \n  _/  _/      _/    _/  _/_/_/_/  _/_/_/_/   "
 
 rightBar :: UI -> Widget Name
 rightBar ui =
@@ -419,107 +423,159 @@ handleEvent ui event =
                         pause = ui & status .~ (ui ^. previousStatus)   --  Vuelve al estado en el que estaba.
         --  Pantalla principal
         1   ->  case event of
-                    (VtyEvent (V.EvKey (V.KChar '1') []))   -> continue playClassic
-                    (VtyEvent (V.EvKey (V.KChar '2') []))   -> continue playMachine
-                    (VtyEvent (V.EvKey (V.KChar '3') []))   -> continue playWall
+                    (VtyEvent (V.EvKey (V.KChar '1') []))   -> continue $ playClassic ui
+                    (VtyEvent (V.EvKey (V.KChar '2') []))   -> continue $ playMachine ui
+                    (VtyEvent (V.EvKey (V.KChar '3') []))   -> continue $ playWall ui
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
                     _                                       -> continue ui
                     where
-                        playClassic = ui & status .~ 2
-                        playMachine = ui & status .~ 4
-                        playWall    = ui & status .~ 6
+                        playClassic ui' = ui' & status .~ 2
+                        playMachine ui' = ui' & status .~ 4
+                        playWall ui'    = ui' & status .~ 6
+
         --  Elegir nivel de classic
         --2   -> continue ui
         2   ->  case event of
                     (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 200000 3
                     (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 100000 3
                     (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 80000  3
+                    
+                    (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
+                    (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
+                    
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
                     _                                       -> continue ui
+                    where
+                        goBack ui' = ui' & status .~ 1
         --  Jugando Classic
         3   ->  case event of
                     --  Pausa y quitar juego
-                    (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue $ pause $ setPreviousStatus ui
-                    (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue $ pause $ setPreviousStatus ui
+                    (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue $ pauseGame ui
+                    (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue $ pauseGame ui
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
+                    --  Volver atrás
+                    (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
+                    (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
                     --  Tick
                     (AppEvent Tick)                         -> handleTick ui
                     --  Controles
-                    (VtyEvent (V.EvKey V.KDown []))         -> continue func2
-                    (VtyEvent (V.EvKey V.KUp []))           -> continue func3
-                    (VtyEvent (V.EvKey (V.KChar 's') []))   -> continue func4
-                    (VtyEvent (V.EvKey (V.KChar 'S') []))   -> continue func4
-                    (VtyEvent (V.EvKey (V.KChar 'w') []))   -> continue func5
-                    (VtyEvent (V.EvKey (V.KChar 'W') []))   -> continue func5
+                    (VtyEvent (V.EvKey V.KDown []))         -> continue playerTwoMoveDown
+                    (VtyEvent (V.EvKey V.KUp []))           -> continue playerTwoMoveUp
+                    (VtyEvent (V.EvKey (V.KChar 's') []))   -> continue $ playerOneMoveDown ui
+                    (VtyEvent (V.EvKey (V.KChar 'S') []))   -> continue $ playerOneMoveDown ui
+                    (VtyEvent (V.EvKey (V.KChar 'w') []))   -> continue $ playerOneMoveUp ui
+                    (VtyEvent (V.EvKey (V.KChar 'W') []))   -> continue $ playerOneMoveUp ui
                     --  Cualquier otra tecla no hace nada
                     _                                   -> continue ui
                     where
-                        pause ui' = ui' & status .~ 0
-                        func2 = if (ui ^. barPlayerTwo . locationRowL) < 18 then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui     
-                        func3 = if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ (subtract 1) else ui
-                        func4 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
-                        func5 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
+                        goBack ui' = ui' & status .~ 2
+                        playerTwoMoveDown = if (ui ^. barPlayerTwo . locationRowL) < 18 then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui
+                        playerTwoMoveUp = if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ (subtract 1) else ui
+
         --  Elegir nivel de Against the Machine
         4   ->  case event of
                     (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 200000 5
                     (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 100000 5
                     (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 80000 5
+
+                    --  Volver atrás
+                    (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
+                    (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
+
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
                     _                                       -> continue ui
+                    where
+                        goBack ui' = ui' & status .~ 1
         --  Jugando Against the Machine
         5   ->  case event of
                     --  Pausa y quitar juego
-                    (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue $ pause $ setPreviousStatus ui
-                    (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue $ pause $ setPreviousStatus ui
+                    (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue $ pauseGame ui
+                    (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue $ pauseGame ui
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
+                    --  Volver atrás
+                    (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
+                    (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
                     --  Tick
                     (AppEvent Tick)                         -> handleTickMachine ui 
                     --  Controles
-                    (VtyEvent (V.EvKey (V.KChar 's') []))   -> continue func4
-                    (VtyEvent (V.EvKey (V.KChar 'S') []))   -> continue func4
-                    (VtyEvent (V.EvKey (V.KChar 'w') []))   -> continue func5
-                    (VtyEvent (V.EvKey (V.KChar 'W') []))   -> continue func5
+                    (VtyEvent (V.EvKey (V.KChar 's') []))   -> continue $ playerOneMoveDown ui
+                    (VtyEvent (V.EvKey (V.KChar 'S') []))   -> continue $ playerOneMoveDown ui
+                    (VtyEvent (V.EvKey (V.KChar 'w') []))   -> continue $ playerOneMoveUp ui
+                    (VtyEvent (V.EvKey (V.KChar 'W') []))   -> continue $ playerOneMoveUp ui
                     _                                       -> continue ui
                     where
-                        pause ui' = ui' & status .~ 0
-                        func4 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
-                        func5 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
+                        goBack ui' = ui' & status .~ 4
 
-         --  Elegir nivel de Against the Machine
+         --  Elegir nivel de Against the Wall
         6   ->  case event of
                     (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 200000 7
                     (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 100000 7
                     (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 80000 7
+
+                    --  Volver atrás
+                    (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
+                    (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
+
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
                     _                                       -> continue ui
-        --  Jugando Against the Machine
+                    where
+                        goBack ui' = ui' & status .~ 1
+
+        --  Jugando Against the Wall
         7   ->  case event of
                     --  Pausa y quitar juego
-                    (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue $ pause $ setPreviousStatus ui
-                    (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue $ pause $ setPreviousStatus ui
+                    (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue $ pauseGame ui
+                    (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue $ pauseGame ui
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
+                    --  Volver atrás
+                    (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
+                    (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
                     --  Tick
                     (AppEvent Tick)                         -> handleTickWall ui 
                     --  Controles
-                    (VtyEvent (V.EvKey (V.KChar 's') []))   -> continue func4
-                    (VtyEvent (V.EvKey (V.KChar 'S') []))   -> continue func4
-                    (VtyEvent (V.EvKey (V.KChar 'w') []))   -> continue func5
-                    (VtyEvent (V.EvKey (V.KChar 'W') []))   -> continue func5
+                    (VtyEvent (V.EvKey (V.KChar 's') []))   -> continue $ playerOneMoveDown ui
+                    (VtyEvent (V.EvKey (V.KChar 'S') []))   -> continue $ playerOneMoveDown ui
+                    (VtyEvent (V.EvKey (V.KChar 'w') []))   -> continue $ playerOneMoveUp ui
+                    (VtyEvent (V.EvKey (V.KChar 'W') []))   -> continue $ playerOneMoveUp ui
                     _                                       -> continue ui
                     where
-                        pause ui' = ui' & status .~ 0
-                        func4 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
-                        func5 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
+                        goBack ui' = ui' & status .~ 6
 
         _   ->  halt ui
 
+resetScores :: UI -> UI
+resetScores ui = UI
+    { _game             = Game { _scorePlayerOne = 0, _scorePlayerTwo = 0 }
+    , _barPlayerOne     = Location (1, 9)
+    , _barPlayerTwo     = Location (76, 9)
+    , _ball             = Location (39, 12)
+    , _xBall            = Izquierda                      --newX randomNumber
+    , _yBall            = Arriba
+    , _status           = ui ^. status
+    , _previousStatus   = ui ^. previousStatus
+    , _level            = ui ^. level
+    }
+
+playerOneMoveDown :: UI -> UI
+playerOneMoveDown ui =
+    if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
+    
+playerOneMoveUp :: UI -> UI
+playerOneMoveUp ui =
+    if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
+
+pauseGame :: UI -> UI
+pauseGame ui =
+    ui & status .~ 0
+
+--  Edita "level" para modificar el delay.
 setLevel :: UI -> Int -> Int -> EventM n (Next UI)
 setLevel ui lvl mode = do
     liftIO $ atomically $ writeTVar (ui ^. level) lvl
