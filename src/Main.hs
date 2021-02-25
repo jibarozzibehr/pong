@@ -1,7 +1,7 @@
---Back Button in every screen
---Reset stats when goes back
+--Back Button in every screen   Done
+--Reset stats when goes back    Done
 --Game over screen
---Fix selectWall Screen
+--Fix selectWall Screen         Done
 --Instructions Screen
 --Fix HLint suggestions
 --Set ball direction randomly on the points but the first one
@@ -36,16 +36,9 @@ type Name = ()
 data BlockType = Bar | Ball
     deriving (Eq, Show, Enum)
 
--- data St = St
---     {   _barPlayerOne   :: Location
---     ,   _barPlayerTwo   :: Location
---     } deriving (Eq, Show)
--- makeLenses ''St
-
 data Game = Game
     {   _scorePlayerOne :: Int
     ,   _scorePlayerTwo :: Int
-    --,   _st             :: St
     } deriving (Eq, Show)
 makeLenses ''Game
 
@@ -84,29 +77,29 @@ drawUI ui   =
         0   ->  [paused]
         1   ->  [mainScreen]
         2   ->  [selectClassicLevel]
-        3   ->  [   rightBar ui
-                ,   leftBar ui
-                ,   ballDraw ui
+        3   ->  [   withAttr barAttr $ rightBar ui
+                ,   withAttr barAttr $ leftBar ui
+                ,   withAttr ballAttr $ ballDraw ui
                 ,   playing
                 ]
         4   ->  [selectMachineLevel]
         
-        5   ->  [   rightBar ui         --  
-                ,   leftBar ui
-                ,   ballDraw ui
+        5   ->  [   withAttr barAttr $ rightBar ui
+                ,   withAttr barAttr $ leftBar ui
+                ,   withAttr ballAttr $ ballDraw ui
                 ,   playing
                 ]
 
         6   ->  [selectWallLevel]
         
-        7   ->  [   leftBar ui
-                ,   ballDraw ui
-                ,   playing
+        7   ->  [   withAttr barAttr $ leftBar ui
+                ,   withAttr ballAttr $ ballDraw ui
+                ,   playingWall
                 ]
-        --6 --  selectWallLevel
-        --7 --  playingWall
-        --8 --  Instructions
         
+        8   ->  [gameOverClassic]
+        9   ->  [gameOverMachine]
+        10  ->  [gameOverWall]
         _   ->  [emptyWidget]
         where
             paused              =
@@ -122,6 +115,15 @@ drawUI ui   =
                 $ withBorderStyle unicode
                 $ borderWithLabel (str "Pong")
                 $ (padLeft Max (str (show $ ui ^. game ^. scorePlayerOne)) <+> vBorder <+> padRight Max (str (show $ ui ^. game ^. scorePlayerTwo)))
+
+            playingWall         =
+                hLimit 80
+                $ vLimit 24
+                $ withBorderStyle unicode
+                $ borderWithLabel (str "Pong")
+                $ padBottom Max
+                --  $ padTop (Pad 1)
+                $ hCenter (str "Score: " <+> str (show $ ui ^. game ^. scorePlayerOne))
 
             mainScreen          =
                 hLimit 80
@@ -155,7 +157,7 @@ drawUI ui   =
                 <=> (hCenter $ str "\n\n\n\nChoose ball speed:")
                 <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
 
-            selectWallLevel  =
+            selectWallLevel     =
                 hLimit 80
                 $ vLimit 24
                 $ withBorderStyle unicode
@@ -166,6 +168,20 @@ drawUI ui   =
                 -- <=> (hCenter $ str "\nWill you ever win?")
                 <=> (hCenter $ str "\n\n\n\nChoose ball speed:")
                 <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
+
+            gameOverWall     =
+                hLimit 80
+                $ vLimit 24
+                $ withBorderStyle unicode
+                $ borderWithLabel (str "Pong")
+                $ padTopBottom 2
+                $ hCenter gameOverTitle
+                <=> center (str "Final score: " <+> str (show (ui ^. game ^. scorePlayerOne)))
+                <=> hCenter (padBottom Max (str "\n\n(b): Main menu"))
+
+            gameOverMachine     = undefined
+
+            gameOverClassic     = undefined
     
     
     --[ rightBar ui
@@ -186,20 +202,23 @@ machineTitle = str "Play against the\n __    __   ______   ______   __  __   __ 
 wallTitle :: Widget Name
 wallTitle = str "  _/          _/    _/_/    _/        _/     \n _/          _/  _/    _/  _/        _/      \n_/    _/    _/  _/_/_/_/  _/        _/       \n _/  _/  _/    _/    _/  _/        _/        \n  _/  _/      _/    _/  _/_/_/_/  _/_/_/_/   "
 
+gameOverTitle :: Widget Name
+gameOverTitle = str "   ______                        ____                 \n  / ____/___ _____ ___  ___     / __ \\_   _____  _____\n / / __/ __ `/ __ `__ \\/ _ \\   / / / / | / / _ \\/ ___/\n/ /_/ / /_/ / / / / / /  __/  / /_/ /| |/ /  __/ /    \n\\____/\\__,_/_/ /_/ /_/\\___/   \\____/ |___/\\___/_/     "
+
 rightBar :: UI -> Widget Name
 rightBar ui =
     translateBy (ui ^. barPlayerTwo) $
-    border $ str "|\n|\n|\n|"
+    border $ str " \n \n \n "
 
 leftBar :: UI -> Widget Name
 leftBar ui =
     translateBy (ui ^. barPlayerOne) $
-    border $ str "|\n|\n|\n|"
+    border $ str " \n \n \n "
     
 ballDraw :: UI -> Widget Name
 ballDraw ui =
     translateBy (ui ^. ball) $
-    str "---"
+    str "  "
 
 --  drawGrid :: UI -> Widget Name
 --  drawGrid ui =
@@ -273,7 +292,7 @@ handleTickWall ui =
     then continue ui
     else 
         if ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL 
-        then continue $ reset $ pointTwo ui                                         --GAME OVER
+        then continue $ ui & status .~ 10                                         --GAME OVER
         else 
             if ui ^. ball . locationColumnL == 78
             then continue $ uiFinal $ pointOne ui & xBall .~ Izquierda
@@ -547,7 +566,16 @@ handleEvent ui event =
                     _                                       -> continue ui
                     where
                         goBack ui' = ui' & status .~ 6
-
+        10  ->  case event of
+                    --  Pausa y quitar juego
+                    (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
+                    (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
+                    --  Volver atrás
+                    (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
+                    (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
+                    _   ->  continue ui
+                    where
+                        goBack ui' = ui' & status .~ 1
         _   ->  halt ui
 
 resetScores :: UI -> UI
@@ -581,56 +609,22 @@ setLevel ui lvl mode = do
     liftIO $ atomically $ writeTVar (ui ^. level) lvl
     continue $ ui & status .~ mode
 
---  handleEvent ui (AppEvent Tick)  = handleTick ui
-
---  handleEvent ui (VtyEvent (V.EvKey (V.KChar 'p') [])) = continue func
---  	where
---  		func = if ui ^. paused then ui & paused .~ False else ui & paused .~ True
-
---  handleEvent ui (VtyEvent (V.EvKey (V.KChar 'P') [])) = continue func
---  	where
---  		func = if ui ^. paused then ui & paused .~ False else ui & paused .~ True
-
---  handleEvent ui (VtyEvent (V.EvKey V.KDown [])) = continue func2
---  	where
---  		func2 = if (ui ^. barPlayerTwo . locationRowL) < 18 then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui
-
---  handleEvent ui (VtyEvent (V.EvKey V.KUp [])) = continue func2
---  	where
---  		func2 = if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ (subtract 1) else ui
-
---  handleEvent ui (VtyEvent (V.EvKey (V.KChar 's') [])) = continue func2
---  	where
---  		func2 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
-
---  handleEvent ui (VtyEvent (V.EvKey (V.KChar 'S') [])) = continue func2
---  	where
---  		func2 = if (ui ^. barPlayerOne . locationRowL) < 18 then ui & barPlayerOne . locationRowL %~ (+ 1) else ui
-
---  handleEvent ui (VtyEvent (V.EvKey (V.KChar 'w') [])) = continue func2
---  	where
---  	    func2 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
-
---  handleEvent ui (VtyEvent (V.EvKey (V.KChar 'W') [])) = continue func2
---  	where
---  		func2 = if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
-
-
 theMap :: AttrMap
 theMap = attrMap
     V.defAttr
     [   (barAttr    , V.white `on` V.white)
+    ,   (ballAttr   , V.white `on` V.white)
     ]
 
-barAttr :: AttrName
-barAttr = "barAttr"
+barAttr, ballAttr :: AttrName
+barAttr     = "barAttr"
+ballAttr    = "ballAttr"
 
 initGame :: IO Game
 initGame = do
     pure $ Game
         {   _scorePlayerOne = 0
         ,   _scorePlayerTwo = 0
-        --,   _st             = St (Location (75, 9)) (Location (2, 9))
         }
 
 initialSpeed :: Int
