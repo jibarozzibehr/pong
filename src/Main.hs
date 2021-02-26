@@ -1,7 +1,4 @@
---Back Button in every screen   Done
---Reset stats when goes back    Done
 --Game over screen
---Fix selectWall Screen         Done
 --Instructions Screen
 --Fix HLint suggestions
 --Set ball direction randomly on the points but the first one
@@ -244,9 +241,9 @@ handleTickMachine ui =
         then continue $ reset $ pointOne ui
         else
             case ui ^. ball . locationRowL of
-                0   -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
+                1   -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
                 --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
-                23  -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
+                22  -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
                 _   -> continue $ uiFinal $ tocaBarra ui
 
                 where
@@ -294,13 +291,13 @@ handleTickWall ui =
         if ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL 
         then continue $ ui & status .~ 10                                         --GAME OVER
         else 
-            if ui ^. ball . locationColumnL == 78
+            if ui ^. ball . locationColumnL == 77
             then continue $ uiFinal $ pointOne ui & xBall .~ Izquierda
             else
                 case ui ^. ball . locationRowL of
-                    0   -> continue $ uiFinal $ bordeSuperior $ tocaBarraWall ui
+                    1   -> continue $ uiFinal $ bordeSuperior $ tocaBarraWall ui
                     --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
-                    23  -> continue $ uiFinal $ bordeInferior $ tocaBarraWall ui
+                    22  -> continue $ uiFinal $ bordeInferior $ tocaBarraWall ui
                     _   -> continue $ uiFinal $ tocaBarraWall ui
 
                     where
@@ -340,9 +337,9 @@ handleTick ui =
         then continue $ reset $ pointOne ui
         else
             case ui ^. ball . locationRowL of
-                0   -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
+                1   -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
                 --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
-                23  -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
+                22  -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
                 _   -> continue $ uiFinal $ tocaBarra ui
 
                 where
@@ -398,7 +395,7 @@ reset ui = UI
 
 tocaBarra :: UI -> UI
 tocaBarra ui = 
-    if ((ui ^. ball . locationRowL >= ui ^. barPlayerOne . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerOne . locationRowL)+5)) && ((ui ^. ball . locationColumnL >= ui ^. barPlayerOne . locationColumnL) && (ui ^. ball . locationColumnL <= (ui ^. barPlayerOne . locationColumnL)+2))
+    if ((ui ^. ball . locationRowL >= ui ^. barPlayerOne . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerOne . locationRowL)+5)) && ((ui ^. ball . locationColumnL >= ui ^. barPlayerOne . locationColumnL) && (ui ^. ball . locationColumnL <= (ui ^. barPlayerOne . locationColumnL)+3))
     then ui & xBall .~ Derecha
     else 
         if ((ui ^. ball . locationRowL >= ui ^. barPlayerTwo . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerTwo . locationRowL)+5)) && ((ui ^. ball . locationColumnL <= ui ^. barPlayerTwo . locationColumnL) && (ui ^. ball . locationColumnL >= (ui ^. barPlayerTwo . locationColumnL)-2))
@@ -409,7 +406,7 @@ tocaBarra ui =
 
 tocaBarraWall :: UI -> UI
 tocaBarraWall ui = 
-    if ((ui ^. ball . locationRowL >= ui ^. barPlayerOne . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerOne . locationRowL)+5)) && ((ui ^. ball . locationColumnL >= ui ^. barPlayerOne . locationColumnL) && (ui ^. ball . locationColumnL <= (ui ^. barPlayerOne . locationColumnL)+2))
+    if ((ui ^. ball . locationRowL >= ui ^. barPlayerOne . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerOne . locationRowL)+5)) && ((ui ^. ball . locationColumnL >= ui ^. barPlayerOne . locationColumnL) && (ui ^. ball . locationColumnL <= (ui ^. barPlayerOne . locationColumnL)+3))
     then ui & xBall .~ Derecha
     else 
         ui
