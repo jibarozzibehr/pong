@@ -1,10 +1,12 @@
---Game over screen
+--Game over screens
 --Instructions Screen
---Fix HLint suggestions
---Set ball direction randomly on the points but the first one
---Draw the ball and bars properly
---End the game when somebody gets 7 points
+--Add Readme
+--Add comments to the code
+--Delete innecessary code and comments
+--Split code in modules
+--Prepare Final presentation
 
+--Set ball direction randomly on the points but the first one
 
 
 {-# LANGUAGE OverloadedStrings #-}
@@ -111,7 +113,7 @@ drawUI ui   =
                 $ vLimit 24
                 $ withBorderStyle unicode
                 $ borderWithLabel (str "Pong")
-                $ (padLeft Max (str (show $ ui ^. game ^. scorePlayerOne)) <+> vBorder <+> padRight Max (str (show $ ui ^. game ^. scorePlayerTwo)))
+                (padLeft Max (str (show $ ui ^. game . scorePlayerOne)) <+> vBorder <+> padRight Max (str (show $ ui ^. game . scorePlayerTwo)))
 
             playingWall         =
                 hLimit 80
@@ -120,7 +122,7 @@ drawUI ui   =
                 $ borderWithLabel (str "Pong")
                 $ padBottom Max
                 --  $ padTop (Pad 1)
-                $ hCenter (str "Score: " <+> str (show $ ui ^. game ^. scorePlayerOne))
+                $ hCenter (str "Score: " <+> str (show $ ui ^. game . scorePlayerOne))
 
             mainScreen          =
                 hLimit 80
@@ -129,8 +131,8 @@ drawUI ui   =
                 $ border
                 $ padTopBottom 2
                 $ hCenter pongTitle
-                <=> (hCenter $ str "\na version by Butros Asis and Juan Barozzi")
-                <=> (padBottom Max $ hCenter $ str "\n\n(1): Play classic\n(2): Play against the machine\n(3): Play against the wall")  
+                <=> hCenter (str "\na version by Butros Asis and Juan Barozzi")
+                <=> padBottom Max (hCenter $ str "\n\n(1): Play classic\n(2): Play against the machine\n(3): Play against the wall")  
 
             selectClassicLevel  =
                 hLimit 80
@@ -139,9 +141,9 @@ drawUI ui   =
                 $ border
                 $ padTopBottom 1
                 $ hCenter classicTitle
-                <=> (hCenter $ str "The Pong version you already know. 1v1.")
-                <=> (hCenter $ str "\n\n\n\n\nChoose ball speed:")
-                <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
+                <=> hCenter (str "The Pong version you already know. 1v1.")
+                <=> hCenter (str "\n\n\n\n\nChoose ball speed:")
+                <=> padBottom Max (hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
 
             selectMachineLevel  =
                 hLimit 80
@@ -150,9 +152,9 @@ drawUI ui   =
                 $ border
                 $ padTopBottom 1
                 $ hCenter machineTitle
-                <=> (hCenter $ str "\nWill you ever win?")
-                <=> (hCenter $ str "\n\n\n\nChoose ball speed:")
-                <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
+                <=> hCenter (str "\nWill you ever win?")
+                <=> hCenter (str "\n\n\n\nChoose ball speed:")
+                <=> padBottom Max (hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
 
             selectWallLevel     =
                 hLimit 80
@@ -163,8 +165,29 @@ drawUI ui   =
                 $ padBottom (Pad 1) (hCenter $ str "\nPlay against the")
                 <=> hCenter wallTitle
                 -- <=> (hCenter $ str "\nWill you ever win?")
-                <=> (hCenter $ str "\n\n\n\nChoose ball speed:")
-                <=> (padBottom Max $ hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
+                <=> hCenter (str "\n\n\n\nChoose ball speed:")
+                <=> padBottom Max (hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
+
+
+            gameOverClassic     = 
+                hLimit 80
+                $ vLimit 24
+                $ withBorderStyle unicode
+                $ borderWithLabel (str "Pong")
+                $ padTopBottom 2
+                $ hCenter gameOverTitle
+                <=> center (str "Final score: " <+> str (show (ui ^. game . scorePlayerOne)))
+                <=> hCenter (padBottom Max (str "\n\n(b): Main menu"))
+
+            gameOverMachine     = 
+                hLimit 80
+                $ vLimit 24
+                $ withBorderStyle unicode
+                $ borderWithLabel (str "Pong")
+                $ padTopBottom 2
+                $ hCenter gameOverTitle
+                <=> center (str "Final score: " <+> str (show (ui ^. game . scorePlayerOne)))
+                <=> hCenter (padBottom Max (str "\n\n(b): Main menu"))
 
             gameOverWall     =
                 hLimit 80
@@ -173,12 +196,12 @@ drawUI ui   =
                 $ borderWithLabel (str "Pong")
                 $ padTopBottom 2
                 $ hCenter gameOverTitle
-                <=> center (str "Final score: " <+> str (show (ui ^. game ^. scorePlayerOne)))
+                <=> center (str "Final score: " <+> str (show (ui ^. game . scorePlayerOne)))
                 <=> hCenter (padBottom Max (str "\n\n(b): Main menu"))
 
-            gameOverMachine     = undefined
 
-            gameOverClassic     = undefined
+
+            
     
     
     --[ rightBar ui
@@ -231,25 +254,26 @@ ballDraw ui =
 
 
 handleTickMachine :: UI -> EventM Name (Next UI)
-handleTickMachine ui =
-    if ui ^. status == 0    --  Si está pausado
-    then continue ui
-    else 
-        if ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL 
-        then continue  $ reset $ pointTwo ui
-        else if ui ^. ball . locationColumnL > ui ^. barPlayerTwo . locationColumnL 
-        then continue $ reset $ pointOne ui
-        else
-            case ui ^. ball . locationRowL of
-                1   -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
-                --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
-                22  -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
-                _   -> continue $ uiFinal $ tocaBarra ui
+handleTickMachine ui
+    | ui ^. status == 0 = continue ui --  Si está pausado
+    | ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL =
+        if ui ^. game . scorePlayerTwo < 6
+            then continue  $ reset $ pointTwo ui
+            else continue $ pointTwo $ ui & status .~ 9
+    | ui ^. ball . locationColumnL > ui ^. barPlayerTwo . locationColumnL =
+        if ui ^. game . scorePlayerOne < 6
+            then continue $ reset $ pointOne ui
+            else continue $ pointOne $ ui & status .~ 9
+    | otherwise = 
+        case ui ^. ball . locationRowL of
+            1   -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
+            --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
+            22  -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
+            _   -> continue $ uiFinal $ tocaBarra ui
 
-                where
-                    uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
-                    uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal $ machineBarUp ui' else ballDown $ uiHorizontal $ machineBarDown ui'
-
+            where
+                uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
+                uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal $ machineBarUp ui' else ballDown $ uiHorizontal $ machineBarDown ui'
 
 
 
@@ -258,21 +282,14 @@ handleTickMachine ui =
 
 machineBarUp :: UI -> UI
 machineBarUp ui =
-    if ((ui ^. xBall) == Derecha) && ((ui ^. ball . locationColumnL) > 39)
-    then
-        if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ (subtract 1) else ui
-    else
-        ui
+    if (((ui ^. xBall) == Derecha) && ((ui ^. ball . locationColumnL) > 39)) && ((ui ^. barPlayerTwo . locationRowL) > 0) then ui & barPlayerTwo . locationRowL %~ subtract 1 else ui
+
 
 
 
 machineBarDown :: UI -> UI
 machineBarDown ui =
-    if ((ui ^. xBall) == Derecha) && ((ui ^. ball . locationColumnL) > 39)
-    then
-        if (ui ^. barPlayerTwo . locationRowL) < 18 then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui
-    else
-        ui
+    if (((ui ^. xBall) == Derecha) && ((ui ^. ball . locationColumnL) > 39)) && ((ui ^. barPlayerTwo . locationRowL) < 18) then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui
 
 
 
@@ -284,25 +301,20 @@ machineBarDown ui =
 
 
 handleTickWall :: UI -> EventM Name (Next UI)
-handleTickWall ui =
-    if ui ^. status == 0    --  Si está pausado
-    then continue ui
-    else 
-        if ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL 
-        then continue $ ui & status .~ 10                                         --GAME OVER
-        else 
-            if ui ^. ball . locationColumnL == 77
-            then continue $ uiFinal $ pointOne ui & xBall .~ Izquierda
-            else
-                case ui ^. ball . locationRowL of
-                    1   -> continue $ uiFinal $ bordeSuperior $ tocaBarraWall ui
-                    --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
-                    22  -> continue $ uiFinal $ bordeInferior $ tocaBarraWall ui
-                    _   -> continue $ uiFinal $ tocaBarraWall ui
+handleTickWall ui
+    | ui ^. status == 0 = continue ui --  Si está pausado
+    | ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL = continue $ ui & status .~ 10                                         --GAME OVER
+    | ui ^. ball . locationColumnL == 77 = continue $ uiFinal $ pointOne ui & xBall .~ Izquierda
+    | otherwise =
+        case ui ^. ball . locationRowL of
+            1   -> continue $ uiFinal $ bordeSuperior $ tocaBarraWall ui
+            --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
+            22  -> continue $ uiFinal $ bordeInferior $ tocaBarraWall ui
+            _   -> continue $ uiFinal $ tocaBarraWall ui
 
-                    where
-                        uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
-                        uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal ui' else ballDown $ uiHorizontal ui'
+            where
+                uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
+                uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal ui' else ballDown $ uiHorizontal ui'
 
 
 
@@ -312,11 +324,11 @@ handleTickWall ui =
 
 ballUp :: UI -> UI
 ballUp ui =
-    ui & ball . locationRowL %~ (subtract 1)
+    ui & ball . locationRowL %~ subtract 1
 
 ballLeft :: UI -> UI
 ballLeft ui =
-    ui & ball . locationColumnL %~ (subtract 1)
+    ui & ball . locationColumnL %~ subtract 1
 
 ballDown :: UI -> UI
 ballDown ui =
@@ -327,24 +339,26 @@ ballRight ui =
     ui & ball . locationColumnL %~ (+ 1)
 
 handleTick :: UI -> EventM Name (Next UI)
-handleTick ui =
-    if ui ^. status == 0    --  Si está pausado
-    then continue ui
-    else 
-        if ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL 
-        then continue  $ reset $ pointTwo ui
-        else if ui ^. ball . locationColumnL > ui ^. barPlayerTwo . locationColumnL 
-        then continue $ reset $ pointOne ui
-        else
-            case ui ^. ball . locationRowL of
-                1   -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
-                --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
-                22  -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
-                _   -> continue $ uiFinal $ tocaBarra ui
+handleTick ui
+    | ui ^. status == 0 =  continue ui   --  Si está pausado
+    | ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL = 
+        if ui ^. game . scorePlayerTwo < 6
+            then continue  $ reset $ pointTwo ui
+            else continue $ pointTwo $ ui & status .~ 8
+    | ui ^. ball . locationColumnL > ui ^. barPlayerTwo . locationColumnL = 
+        if ui ^. game . scorePlayerOne < 6
+            then continue $ reset $ pointOne ui
+            else continue $ pointOne $ ui & status .~ 8
+    | otherwise = 
+        case ui ^. ball . locationRowL of
+            1   -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
+            --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
+            22  -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
+            _   -> continue $ uiFinal $ tocaBarra ui
 
-                where
-                    uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
-                    uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal ui' else ballDown $ uiHorizontal ui'
+            where
+                uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
+                uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal ui' else ballDown $ uiHorizontal ui'
 
 
 
@@ -352,11 +366,12 @@ handleTick ui =
 
 
 pointOne :: UI -> UI
---pointOne ui = if ui & game . scorePlayerOne < 6 then ui & game . scorePlayerOne %~ (+ 1) else ui & status 
 pointOne ui = ui & game . scorePlayerOne %~ (+ 1)
+--pointOne ui = if ui & game . scorePlayerOne < 6 then ui & game . scorePlayerOne %~ (+ 1) else ui & status 
 
 pointTwo :: UI -> UI
 pointTwo ui = ui & game . scorePlayerTwo %~ (+ 1)
+--pointTwo ui = if ui ^. game . scorePlayerTwo < 6 then ui & game . scorePlayerTwo %~ (+ 1) else ui & status .~ 10
 
 reset :: UI -> UI
 reset ui = UI
@@ -394,13 +409,10 @@ reset ui = UI
 --    ui & ball . locationRowL %~ (+ 1)
 
 tocaBarra :: UI -> UI
-tocaBarra ui = 
-    if ((ui ^. ball . locationRowL >= ui ^. barPlayerOne . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerOne . locationRowL)+5)) && ((ui ^. ball . locationColumnL >= ui ^. barPlayerOne . locationColumnL) && (ui ^. ball . locationColumnL <= (ui ^. barPlayerOne . locationColumnL)+3))
-    then ui & xBall .~ Derecha
-    else 
-        if ((ui ^. ball . locationRowL >= ui ^. barPlayerTwo . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerTwo . locationRowL)+5)) && ((ui ^. ball . locationColumnL <= ui ^. barPlayerTwo . locationColumnL) && (ui ^. ball . locationColumnL >= (ui ^. barPlayerTwo . locationColumnL)-2))
-        then ui & xBall .~ Izquierda
-        else ui
+tocaBarra ui
+    | ((ui ^. ball . locationRowL >= ui ^. barPlayerOne . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerOne . locationRowL)+5)) && ((ui ^. ball . locationColumnL >= ui ^. barPlayerOne . locationColumnL) && (ui ^. ball . locationColumnL <= (ui ^. barPlayerOne . locationColumnL)+3)) = ui & xBall .~ Derecha
+    | ((ui ^. ball . locationRowL >= ui ^. barPlayerTwo . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerTwo . locationRowL)+5)) && ((ui ^. ball . locationColumnL <= ui ^. barPlayerTwo . locationColumnL) && (ui ^. ball . locationColumnL >= (ui ^. barPlayerTwo . locationColumnL)-2)) = ui & xBall .~ Izquierda
+    | otherwise = ui
 
 
 
@@ -489,7 +501,7 @@ handleEvent ui event =
                     where
                         goBack ui' = ui' & status .~ 2
                         playerTwoMoveDown = if (ui ^. barPlayerTwo . locationRowL) < 18 then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui
-                        playerTwoMoveUp = if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ (subtract 1) else ui
+                        playerTwoMoveUp = if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ subtract 1 else ui
 
         --  Elegir nivel de Against the Machine
         4   ->  case event of
@@ -594,7 +606,7 @@ playerOneMoveDown ui =
     
 playerOneMoveUp :: UI -> UI
 playerOneMoveUp ui =
-    if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ (subtract 1) else ui
+    if (ui ^. barPlayerOne . locationRowL) > 0 then ui & barPlayerOne . locationRowL %~ subtract 1 else ui
 
 pauseGame :: UI -> UI
 pauseGame ui =
@@ -618,7 +630,7 @@ barAttr     = "barAttr"
 ballAttr    = "ballAttr"
 
 initGame :: IO Game
-initGame = do
+initGame = 
     pure $ Game
         {   _scorePlayerOne = 0
         ,   _scorePlayerTwo = 0
@@ -631,10 +643,10 @@ playGame :: IO Game
 playGame = do
     --  let delay = 200000
     chan <- newBChan 10
-    tv   <- atomically $ newTVar (initialSpeed)
+    tv   <- atomically $ newTVar initialSpeed
     _ <- forkIO $ forever $ do
         writeBChan chan Tick
-        int <- atomically $ readTVar tv
+        int <- readTVarIO tv
         threadDelay int
     initialGame <- initGame
     let buildVty = V.mkVty V.defaultConfig
@@ -676,4 +688,4 @@ newY yRand =
 main :: IO ()
 main = do
     _ <- playGame
-    putStrLn $ "Thanks for playing Pong!"
+    putStrLn "Thanks for playing Pong!"
