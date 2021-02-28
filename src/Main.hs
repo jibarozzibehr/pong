@@ -1,6 +1,3 @@
---Game over screens
---Instructions Screen
---Add Readme
 --Add comments to the code
 --Delete innecessary code and comments
 --Split code in modules
@@ -96,8 +93,8 @@ drawUI ui   =
                 ,   playingWall
                 ]
         
-        8   ->  [gameOverClassic]
-        9   ->  [gameOverMachine]
+        8   ->  [gameOverClassic ui]
+        9   ->  [gameOverMachine ui]
         10  ->  [gameOverWall]
         11  ->  [controls, joystickArt, instructions]
         _   ->  [emptyWidget]
@@ -176,7 +173,7 @@ drawUI ui   =
                 <=> hCenter (str "\n\n\n\nChoose ball speed:")
                 <=> padBottom Max (hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
 
-            gameOverClassic     = 
+            gameOverClassic ui' = 
                 setAvailableSize (80, 24)
                 $ hLimit 80
                 $ vLimit 24
@@ -184,10 +181,11 @@ drawUI ui   =
                 $ borderWithLabel (str "Pong")
                 $ padTopBottom 2
                 $ hCenter gameOverTitle
-                <=> center (str "Final score: " <+> str (show (ui ^. game . scorePlayerOne)))
-                <=> hCenter (padBottom Max (str "\n\n(b): Main menu"))
+                <=> center (getClassicWinner ui')
+                --(str "Final score: " <+> str (show (ui ^. game . scorePlayerOne)))
+                <=> hCenter (padBottom Max (str "\n\n\n(b): Main menu"))
 
-            gameOverMachine     = 
+            gameOverMachine ui' = 
                 setAvailableSize (80, 24)
                 $ hLimit 80
                 $ vLimit 24
@@ -195,8 +193,8 @@ drawUI ui   =
                 $ borderWithLabel (str "Pong")
                 $ padTopBottom 2
                 $ hCenter gameOverTitle
-                <=> center (str "Final score: " <+> str (show (ui ^. game . scorePlayerOne)))
-                <=> hCenter (padBottom Max (str "\n\n(b): Main menu"))
+                <=> center (getMachineWinner ui')
+                <=> hCenter (padBottom Max (str "\n\n\n(b): Main menu"))
 
             gameOverWall     =
                 setAvailableSize (80, 24)
@@ -206,8 +204,8 @@ drawUI ui   =
                 $ borderWithLabel (str "Pong")
                 $ padTopBottom 2
                 $ hCenter gameOverTitle
-                <=> center (str "Final score: " <+> str (show (ui ^. game . scorePlayerOne)))
-                <=> hCenter (padBottom Max (str "\n\n(b): Main menu"))
+                <=> padTop (Pad 2) (center (str "Final score: " <+> str (show (ui ^. game . scorePlayerOne))))
+                <=> hCenter (padBottom Max (str "\n\n\n(b): Main menu"))
 
             instructions    =
                 setAvailableSize (80, 24)
@@ -224,6 +222,16 @@ drawUI ui   =
                 $ vLimit 20
                 $ borderWithLabel (str "Controls")
                 $ str "\n  (w) -> Player One bar up  \n  (s) -> Player One bar down  \n\n  (↑ ) -> Player Two bar up  \n  (↓ ) -> Player Two bar down  \n\n  (p) -> Pause game  \n  (q) -> Quit game  \n  (b) -> Go back  \n\n"
+
+getClassicWinner :: UI -> Widget Name
+getClassicWinner ui
+    |   ui ^. game . scorePlayerOne > ui ^. game . scorePlayerTwo   = hCenter (str "\n\n\n\nPlayer One wins!\n\n") <=> hCenter (str (show (ui ^. game . scorePlayerOne)) <+> str " - " <+> str (show (ui ^. game . scorePlayerTwo)))
+    |   otherwise   = hCenter (str "\n\n\n\nPlayer Two wins!\n\n") <=> hCenter (str (show (ui ^. game . scorePlayerTwo)) <+> str " - " <+> str (show (ui ^. game . scorePlayerOne)))
+
+getMachineWinner :: UI -> Widget Name
+getMachineWinner ui
+    |   ui ^. game . scorePlayerOne > ui ^. game . scorePlayerTwo   = hCenter (str "\n\n\n\nPlayer One wins!\n\n") <=> hCenter (str (show (ui ^. game . scorePlayerOne)) <+> str " - " <+> str (show (ui ^. game . scorePlayerTwo)))
+    |   otherwise   = hCenter (str "\n\n\n\nThe machine wins!\n\n") <=> hCenter (str (show (ui ^. game . scorePlayerTwo)) <+> str " - " <+> str (show (ui ^. game . scorePlayerOne)))
 
 pongTitle, classicTitle, machineTitle, wallTitle, gameOverTitle, joystickArt :: Widget Name
 pongTitle       = str "         _               _                _                   _        \n        /\\ \\            /\\ \\             /\\ \\     _          /\\ \\      \n       /  \\ \\          /  \\ \\           /  \\ \\   /\\_\\       /  \\ \\     \n      / /\\ \\ \\        / /\\ \\ \\         / /\\ \\ \\_/ / /      / /\\ \\_\\    \n     / / /\\ \\_\\      / / /\\ \\ \\       / / /\\ \\___/ /      / / /\\/_/    \n    / / /_/ / /     / / /  \\ \\_\\     / / /  \\/____/      / / / ______  \n   / / /__\\/ /     / / /   / / /    / / /    / / /      / / / /\\_____\\ \n  / / /_____/     / / /   / / /    / / /    / / /      / / /  \\/____ / \n / / /           / / /___/ / /    / / /    / / /      / / /_____/ / /  \n/ / /           / / /____\\/ /    / / /    / / /      / / /______\\/ /   \n\\/_/            \\/_________/     \\/_/     \\/_/       \\/___________/     \n"
@@ -546,6 +554,29 @@ handleEvent ui event =
                     _                                       -> continue ui
                     where
                         goBack ui' = ui' & status .~ 6
+        --  Game Over Classic
+        8   ->  case event of
+                    --  Quitar juego
+                    (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
+                    (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
+                    --  Volver atrás
+                    (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
+                    (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
+                    _   ->  continue ui
+                    where
+                        goBack ui' = ui' & status .~ 1
+        --  Game Over Machine
+        9   ->  case event of
+                    --  Quitar juego
+                    (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
+                    (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
+                    --  Volver atrás
+                    (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
+                    (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
+                    _   ->  continue ui
+                    where
+                        goBack ui' = ui' & status .~ 1
+        --  Game Over Wall
         10  ->  case event of
                     --  Quitar juego
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
@@ -556,6 +587,7 @@ handleEvent ui event =
                     _   ->  continue ui
                     where
                         goBack ui' = ui' & status .~ 1
+        --  Instructions
         11  ->  case event of
                     --  Quitar juego
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
