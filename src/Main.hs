@@ -3,8 +3,6 @@
 --Split code in modules
 --Prepare Final presentation
 
---Set ball direction randomly on the points but the first one
-
 
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
@@ -226,7 +224,7 @@ drawUI ui   =
 getClassicWinner :: UI -> Widget Name
 getClassicWinner ui
     |   ui ^. game . scorePlayerOne > ui ^. game . scorePlayerTwo   = hCenter (str "\n\n\n\nPlayer One wins!\n\n") <=> hCenter (str (show (ui ^. game . scorePlayerOne)) <+> str " - " <+> str (show (ui ^. game . scorePlayerTwo)))
-    |   otherwise   = hCenter (str "\n\n\n\nPlayer Two wins!\n\n") <=> hCenter (str (show (ui ^. game . scorePlayerTwo)) <+> str " - " <+> str (show (ui ^. game . scorePlayerOne)))
+    |   otherwise   = hCenter (str "\n\n\n\nPlayer Two wins!\n\n") <=> hCenter (str (show (ui ^. game . scorePlayerOne)) <+> str " - " <+> str (show (ui ^. game . scorePlayerTwo)))
 
 getMachineWinner :: UI -> Widget Name
 getMachineWinner ui
@@ -368,8 +366,8 @@ reset ui = UI
     , _barPlayerOne     = Location (1, 9)
     , _barPlayerTwo     = Location (76, 9)
     , _ball             = Location (39, 12)
-    , _xBall            = Izquierda                      --newX randomNumber
-    , _yBall            = Arriba
+    , _xBall            = ui ^. xBall 
+    , _yBall            = ui ^. yBall
     , _status           = ui ^. status
     , _previousStatus   = ui ^. previousStatus
     , _level            = ui ^. level
@@ -444,9 +442,9 @@ handleEvent ui event =
         --  Elegir nivel de classic
         --2   -> continue ui
         2   ->  case event of
-                    (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 200000 3
-                    (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 100000 3
-                    (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 80000  3
+                    (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 150000 3
+                    (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 80000 3
+                    (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 50000  3
                     
                     (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
                     (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
@@ -484,9 +482,9 @@ handleEvent ui event =
 
         --  Elegir nivel de Against the Machine
         4   ->  case event of
-                    (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 200000 5
-                    (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 100000 5
-                    (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 80000 5
+                    (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 150000 5
+                    (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 80000 5
+                    (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 50000 5
 
                     --  Volver atrás
                     (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
@@ -520,9 +518,9 @@ handleEvent ui event =
 
          --  Elegir nivel de Against the Wall
         6   ->  case event of
-                    (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 200000 7
-                    (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 100000 7
-                    (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 80000 7
+                    (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 150000 7
+                    (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 80000 7
+                    (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 50000 7
 
                     --  Volver atrás
                     (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
@@ -606,8 +604,8 @@ resetScores ui = UI
     , _barPlayerOne     = Location (1, 9)
     , _barPlayerTwo     = Location (76, 9)
     , _ball             = Location (39, 12)
-    , _xBall            = Izquierda                      --newX randomNumber
-    , _yBall            = Arriba
+    , _xBall            = ui ^. xBall                    --newX randomNumber
+    , _yBall            = ui ^. yBall
     , _status           = ui ^. status
     , _previousStatus   = ui ^. previousStatus
     , _level            = ui ^. level
