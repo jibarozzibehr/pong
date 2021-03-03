@@ -18,7 +18,8 @@ cabal-version:       >=1.10
 executable pong
   main-is:             Main.hs
   ghc-options:         -threaded -Wall
-  -- other-modules:
+  other-modules:       Pong
+                    ,  UI
   -- other-extensions:
   build-depends:       base >=4.12 && <4.13
                     ,  brick
