@@ -1,9 +1,3 @@
---Add comments to the code
---Delete innecessary code and comments
---Prepare Final presentation
-
-{-# LANGUAGE RankNTypes #-}
-
 module Pong where
 
 import UI
@@ -18,9 +12,7 @@ import Control.Concurrent (threadDelay, forkIO)
 import Control.Concurrent.STM
 import System.Random
 
-
-
-
+--App's Initialization
 app :: App UI Tick Name
 app = App
   { appDraw         = drawUI
@@ -30,26 +22,60 @@ app = App
   , appAttrMap      = const theMap
   }
 
+--Moves the ball one step to the top
+ballUp :: UI -> UI
+ballUp ui =
+    ui & ball . locationRowL %~ subtract 1
 
+--Moves the ball one step to the left
+ballLeft :: UI -> UI
+ballLeft ui =
+    ui & ball . locationColumnL %~ subtract 1
 
+--Moves the ball one step to the bottom
+ballDown :: UI -> UI
+ballDown ui =
+    ui & ball . locationRowL %~ (+ 1)
 
+--Moves the ball one step to the right
+ballRight :: UI -> UI
+ballRight ui =
+    ui & ball . locationColumnL %~ (+ 1)
 
---  drawGrid :: UI -> Widget Name
---  drawGrid ui =
---      hLimit 80
---          $ withBorderStyle unicode
---          $ borderWithLabel (str "Pong")
---          $ case ui ^. paused of
---              True    -> center $ str "Juego en pausa"
---              --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
---              False   -> (padLeft Max (str (show $ ui ^. game ^. scorePlayerOne)) <+> vBorder <+> padRight Max (str (show $ ui ^. game ^. scorePlayerTwo)))
+--Controls every step of the time
+handleTick :: UI -> EventM Name (Next UI)
+handleTick ui
+    |   ui ^. status == 0 =  continue ui                                             -- if the game is paused
+    |   ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL =        -- if player two scores a point
+            if ui ^. game . scorePlayerTwo < 6                                       -- if this is the 7th point of the player, the game ends
+                then continue  $ reset $ pointTwo ui
+                else continue $ pointTwo $ ui & status .~ 8
+    |   ui ^. ball . locationColumnL > ui ^. barPlayerTwo . locationColumnL =        -- if player two scores a point
+            if ui ^. game . scorePlayerOne < 6                                       -- if this is the 7th point of the player, the game ends
+                then continue $ reset $ pointOne ui
+                else continue $ pointOne $ ui & status .~ 8
+    |   otherwise =                                                                  -- if none of the players scores a point, the ball will keep moving
+            case ui ^. ball . locationRowL of
+                1   -> continue $ uiFinal $ borderTop $ touchBar ui             -- when the ball touches the top, changes its directions to the bottom
+                22  -> continue $ uiFinal $ borderBottom $ touchBar ui             -- when the ball touches the bottom, changes its directions to the top
+                _   -> continue $ uiFinal $ touchBar ui                             -- otherwise, keeps moving
 
+                where
+                    uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
+                    uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal ui' else ballDown $ uiHorizontal ui'
 
+--Increases the player one score on 1
+pointOne :: UI -> UI
+pointOne ui = ui & game . scorePlayerOne %~ (+ 1)
 
+--Increases the player two score on 1
+pointTwo :: UI -> UI
+pointTwo ui = ui & game . scorePlayerTwo %~ (+ 1)
 
+--Controls time steps on 'against machine' mode
 handleTickMachine :: UI -> EventM Name (Next UI)
 handleTickMachine ui
-    |   ui ^. status == 0 = continue ui --  Si está pausado
+    |   ui ^. status == 0 = continue ui 
     |   ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL =
             if ui ^. game . scorePlayerTwo < 6
                 then continue  $ reset $ pointTwo ui
@@ -60,84 +86,43 @@ handleTickMachine ui
                 else continue $ pointOne $ ui & status .~ 9
     |   otherwise = 
             case ui ^. ball . locationRowL of
-                1   -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
-                22  -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
-                _   -> continue $ uiFinal $ tocaBarra ui
+                1   -> continue $ uiFinal $ borderTop $ touchBar ui
+                22  -> continue $ uiFinal $ borderBottom $ touchBar ui
+                _   -> continue $ uiFinal $ touchBar ui
 
                 where
                     uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
-                    uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal $ machineBarUp ui' else ballDown $ uiHorizontal $ machineBarDown ui'
+                    --The machine bars move up or down so does the ball
+                    uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal $ machineBarUp ui' else ballDown $ uiHorizontal $ machineBarDown ui'  
 
+--If the ball is in the machine field, the bar will folow the ball's directions on the Y axis
 machineBarUp :: UI -> UI
 machineBarUp ui =
     if (((ui ^. xBall) == Derecha) && ((ui ^. ball . locationColumnL) > 39)) && ((ui ^. barPlayerTwo . locationRowL) > 0) then ui & barPlayerTwo . locationRowL %~ subtract 1 else ui
 
+--If the ball is in the machine field, the bar will folow the ball's directions on the Y axis
 machineBarDown :: UI -> UI
 machineBarDown ui =
     if (((ui ^. xBall) == Derecha) && ((ui ^. ball . locationColumnL) > 39)) && ((ui ^. barPlayerTwo . locationRowL) < 18) then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui
 
+--Controls time steps on 'against wall' mode
 handleTickWall :: UI -> EventM Name (Next UI)
 handleTickWall ui
-    |   ui ^. status == 0 = continue ui --  Si está pausado
-    |   ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL = continue $ ui & status .~ 10                                         --GAME OVER
-    |   ui ^. ball . locationColumnL == 77 = continue $ uiFinal $ pointOne ui & xBall .~ Izquierda
+    |   ui ^. status == 0 = continue ui
+    |   ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL = continue $ ui & status .~ 10                                    -- GAME OVER
+    |   ui ^. ball . locationColumnL == 77 = continue $ uiFinal $ pointOne ui & xBall .~ Izquierda                                            -- The player one scores when the ball touches the right wall
+                                                                                                                                              -- And ball direction changes
     |   otherwise =
             case ui ^. ball . locationRowL of
-                1   -> continue $ uiFinal $ bordeSuperior $ tocaBarraWall ui
-                --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
-                22  -> continue $ uiFinal $ bordeInferior $ tocaBarraWall ui
-                _   -> continue $ uiFinal $ tocaBarraWall ui
+                1   -> continue $ uiFinal $ borderTop $ touchBarWall ui
+                22  -> continue $ uiFinal $ borderBottom $ touchBarWall ui
+                _   -> continue $ uiFinal $ touchBarWall ui
 
                 where
                     uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
                     uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal ui' else ballDown $ uiHorizontal ui'
 
-ballUp :: UI -> UI
-ballUp ui =
-    ui & ball . locationRowL %~ subtract 1
-
-ballLeft :: UI -> UI
-ballLeft ui =
-    ui & ball . locationColumnL %~ subtract 1
-
-ballDown :: UI -> UI
-ballDown ui =
-    ui & ball . locationRowL %~ (+ 1)
-
-ballRight :: UI -> UI
-ballRight ui =
-    ui & ball . locationColumnL %~ (+ 1)
-
-handleTick :: UI -> EventM Name (Next UI)
-handleTick ui
-    |   ui ^. status == 0 =  continue ui   --  Si está pausado
-    |   ui ^. ball . locationColumnL < ui ^. barPlayerOne . locationColumnL = 
-            if ui ^. game . scorePlayerTwo < 6
-                then continue  $ reset $ pointTwo ui
-                else continue $ pointTwo $ ui & status .~ 8
-    |   ui ^. ball . locationColumnL > ui ^. barPlayerTwo . locationColumnL = 
-            if ui ^. game . scorePlayerOne < 6
-                then continue $ reset $ pointOne ui
-                else continue $ pointOne $ ui & status .~ 8
-    |   otherwise = 
-            case ui ^. ball . locationRowL of
-                1   -> continue $ uiFinal $ bordeSuperior $ tocaBarra ui
-                --False   -> (center $ str "Puntaje jugador 1: " <+> str (show $ ui ^. game ^. scorePlayerOne))
-                22  -> continue $ uiFinal $ bordeInferior $ tocaBarra ui
-                _   -> continue $ uiFinal $ tocaBarra ui
-
-                where
-                    uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
-                    uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal ui' else ballDown $ uiHorizontal ui'
-
-pointOne :: UI -> UI
-pointOne ui = ui & game . scorePlayerOne %~ (+ 1)
---pointOne ui = if ui & game . scorePlayerOne < 6 then ui & game . scorePlayerOne %~ (+ 1) else ui & status 
-
-pointTwo :: UI -> UI
-pointTwo ui = ui & game . scorePlayerTwo %~ (+ 1)
---pointTwo ui = if ui ^. game . scorePlayerTwo < 6 then ui & game . scorePlayerTwo %~ (+ 1) else ui & status .~ 10
-
+-- Reset the locations of the bars and the ball when someone scores a point
 reset :: UI -> UI
 reset ui = UI
     { _game             = ui ^. game
@@ -150,50 +135,39 @@ reset ui = UI
     , _previousStatus   = ui ^. previousStatus
     , _level            = ui ^. level
     }
-       -- where 
-       --     randomNumber = do
-       --         xRand <- randomRIO (0,1)
-       --         return xRand
 
---randomRIO (1, 10)
-
-        --next <- execStateT timeStep $ ui
-        --continue next
-    --else continue func3
-            --where func3 n = n & ball . locationRowL %~ (+ 1)
-
---timeStep :: MonadIO m => UI -> PongT m ()
---timeStep ui =
---    ui & ball . locationRowL %~ (+ 1)
-
-tocaBarra :: UI -> UI
-tocaBarra ui
+--Verifies if the ball is touching any bar    
+touchBar :: UI -> UI
+touchBar ui
     |   ((ui ^. ball . locationRowL >= ui ^. barPlayerOne . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerOne . locationRowL)+5)) && ((ui ^. ball . locationColumnL >= ui ^. barPlayerOne . locationColumnL) && (ui ^. ball . locationColumnL <= (ui ^. barPlayerOne . locationColumnL)+3)) = ui & xBall .~ Derecha
     |   ((ui ^. ball . locationRowL >= ui ^. barPlayerTwo . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerTwo . locationRowL)+5)) && ((ui ^. ball . locationColumnL <= ui ^. barPlayerTwo . locationColumnL) && (ui ^. ball . locationColumnL >= (ui ^. barPlayerTwo . locationColumnL)-2)) = ui & xBall .~ Izquierda
     |   otherwise = ui
 
-tocaBarraWall :: UI -> UI
-tocaBarraWall ui = 
+--Only verifies if the ball is touching the player's bar on the wall mode
+touchBarWall :: UI -> UI
+touchBarWall ui = 
     if ((ui ^. ball . locationRowL >= ui ^. barPlayerOne . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerOne . locationRowL)+5)) && ((ui ^. ball . locationColumnL >= ui ^. barPlayerOne . locationColumnL) && (ui ^. ball . locationColumnL <= (ui ^. barPlayerOne . locationColumnL)+3))
         then ui & xBall .~ Derecha
         else ui
 
-bordeSuperior :: UI -> UI
-bordeSuperior ui = ui & yBall .~ Abajo
+--Set the ball's directions to the bottom (Because is touching the top border)
+borderTop :: UI -> UI
+borderTop ui = ui & yBall .~ Abajo
 
+--Set the ball's directions to the top (Because is touching the bottom border)
+borderBottom :: UI -> UI
+borderBottom ui = ui & yBall .~ Arriba
 
-bordeInferior :: UI -> UI
-bordeInferior ui = ui & yBall .~ Arriba
-
---  Guarda el estado actual como previo.
+-- Sets the current status as the previous
 setPreviousStatus :: UI -> UI
 setPreviousStatus ui =
     ui & previousStatus .~ (ui ^. status)
 
+
 handleEvent :: UI -> BrickEvent Name Tick -> EventM Name (Next UI)
 handleEvent ui event =
     case ui ^. status of
-        --  Juego pausado
+        --  Paused game
         0   ->  case event of
                     (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue pause
                     (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue pause
@@ -202,7 +176,7 @@ handleEvent ui event =
                     _                                       -> continue ui
                     where
                         pause = ui & status .~ (ui ^. previousStatus)   --  Vuelve al estado en el que estaba.
-        --  Pantalla principal
+        --  Main screen
         1   ->  case event of
                     (VtyEvent (V.EvKey (V.KChar '1') []))   -> continue $ playClassic ui
                     (VtyEvent (V.EvKey (V.KChar '2') []))   -> continue $ playMachine ui
@@ -217,8 +191,7 @@ handleEvent ui event =
                         playWall ui'        = ui' & status .~ 6
                         instructions ui'    = ui' & status .~ 11
 
-        --  Elegir nivel de classic
-        --2   -> continue ui
+        --  Select classic level
         2   ->  case event of
                     (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 150000 3
                     (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 80000 3
@@ -232,39 +205,39 @@ handleEvent ui event =
                     _                                       -> continue ui
                     where
                         goBack ui' = ui' & status .~ 1
-        --  Jugando Classic
+        --  Playing classic mode
         3   ->  case event of
-                    --  Pausa y quitar juego
+                    --  Pause or quit the game
                     (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue $ pauseGame $ setPreviousStatus ui
                     (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue $ pauseGame $ setPreviousStatus ui
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
-                    --  Volver atrás
+                    --  Go back
                     (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
                     (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
                     --  Tick
                     (AppEvent Tick)                         -> handleTick ui
-                    --  Controles
+                    --  Controls
                     (VtyEvent (V.EvKey V.KDown []))         -> continue playerTwoMoveDown
                     (VtyEvent (V.EvKey V.KUp []))           -> continue playerTwoMoveUp
                     (VtyEvent (V.EvKey (V.KChar 's') []))   -> continue $ playerOneMoveDown ui
                     (VtyEvent (V.EvKey (V.KChar 'S') []))   -> continue $ playerOneMoveDown ui
                     (VtyEvent (V.EvKey (V.KChar 'w') []))   -> continue $ playerOneMoveUp ui
                     (VtyEvent (V.EvKey (V.KChar 'W') []))   -> continue $ playerOneMoveUp ui
-                    --  Cualquier otra tecla no hace nada
+                    --  Any other key
                     _                                   -> continue ui
                     where
                         goBack ui' = ui' & status .~ 2
                         playerTwoMoveDown = if (ui ^. barPlayerTwo . locationRowL) < 18 then ui & barPlayerTwo . locationRowL %~ (+ 1) else ui
                         playerTwoMoveUp = if (ui ^. barPlayerTwo . locationRowL) > 0 then ui & barPlayerTwo . locationRowL %~ subtract 1 else ui
 
-        --  Elegir nivel de Against the Machine
+        --  Select machine level
         4   ->  case event of
                     (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 150000 5
                     (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 80000 5
                     (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 50000 5
 
-                    --  Volver atrás
+                    --  Go back
                     (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
                     (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
 
@@ -273,34 +246,35 @@ handleEvent ui event =
                     _                                       -> continue ui
                     where
                         goBack ui' = ui' & status .~ 1
-        --  Jugando Against the Machine
+        --  Playing against the machine
         5   ->  case event of
-                    --  Pausa y quitar juego
+                    --  Pause or quit the game
                     (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue $ pauseGame $ setPreviousStatus ui
                     (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue $ pauseGame $ setPreviousStatus ui
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
-                    --  Volver atrás
+                    --  Go back
                     (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
                     (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
                     --  Tick
                     (AppEvent Tick)                         -> handleTickMachine ui 
-                    --  Controles
+                    --  Controls
                     (VtyEvent (V.EvKey (V.KChar 's') []))   -> continue $ playerOneMoveDown ui
                     (VtyEvent (V.EvKey (V.KChar 'S') []))   -> continue $ playerOneMoveDown ui
                     (VtyEvent (V.EvKey (V.KChar 'w') []))   -> continue $ playerOneMoveUp ui
                     (VtyEvent (V.EvKey (V.KChar 'W') []))   -> continue $ playerOneMoveUp ui
+                    --Any other key
                     _                                       -> continue ui
                     where
                         goBack ui' = ui' & status .~ 4
 
-         --  Elegir nivel de Against the Wall
+         --  Select wall level
         6   ->  case event of
                     (VtyEvent (V.EvKey (V.KChar '1') []))   -> setLevel ui 150000 7
                     (VtyEvent (V.EvKey (V.KChar '2') []))   -> setLevel ui 80000 7
                     (VtyEvent (V.EvKey (V.KChar '3') []))   -> setLevel ui 50000 7
 
-                    --  Volver atrás
+                    --  Go back
                     (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
                     (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
 
@@ -310,32 +284,34 @@ handleEvent ui event =
                     where
                         goBack ui' = ui' & status .~ 1
 
-        --  Jugando Against the Wall
+        --  Playing against the Wall
         7   ->  case event of
-                    --  Pausa y quitar juego
+                    --  Pause or quit the game
                     (VtyEvent (V.EvKey (V.KChar 'p') []))   -> continue $ pauseGame $ setPreviousStatus ui
                     (VtyEvent (V.EvKey (V.KChar 'P') []))   -> continue $ pauseGame $ setPreviousStatus ui
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
-                    --  Volver atrás
+                    --  Go back
                     (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
                     (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
                     --  Tick
                     (AppEvent Tick)                         -> handleTickWall ui 
-                    --  Controles
+                    --  Controls
                     (VtyEvent (V.EvKey (V.KChar 's') []))   -> continue $ playerOneMoveDown ui
                     (VtyEvent (V.EvKey (V.KChar 'S') []))   -> continue $ playerOneMoveDown ui
                     (VtyEvent (V.EvKey (V.KChar 'w') []))   -> continue $ playerOneMoveUp ui
                     (VtyEvent (V.EvKey (V.KChar 'W') []))   -> continue $ playerOneMoveUp ui
+                    -- Any other key
                     _                                       -> continue ui
                     where
                         goBack ui' = ui' & status .~ 6
+
         --  Game Over Classic
         8   ->  case event of
-                    --  Quitar juego
+                    --  Quit game
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
-                    --  Volver atrás
+                    --  Go back
                     (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
                     (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
                     _   ->  continue ui
@@ -343,10 +319,10 @@ handleEvent ui event =
                         goBack ui' = ui' & status .~ 1
         --  Game Over Machine
         9   ->  case event of
-                    --  Quitar juego
+                    --  Quit game
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
-                    --  Volver atrás
+                    --  Go back
                     (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
                     (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
                     _   ->  continue ui
@@ -354,10 +330,10 @@ handleEvent ui event =
                         goBack ui' = ui' & status .~ 1
         --  Game Over Wall
         10  ->  case event of
-                    --  Quitar juego
+                    --  Quit game
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
-                    --  Volver atrás
+                    --  Go back
                     (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
                     (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
                     _   ->  continue ui
@@ -365,10 +341,10 @@ handleEvent ui event =
                         goBack ui' = ui' & status .~ 1
         --  Instructions
         11  ->  case event of
-                    --  Quitar juego
+                    --  Quit game
                     (VtyEvent (V.EvKey (V.KChar 'q') []))   -> halt ui
                     (VtyEvent (V.EvKey (V.KChar 'Q') []))   -> halt ui
-                    --  Volver atrás
+                    --  Go back
                     (VtyEvent (V.EvKey (V.KChar 'b') []))   -> continue $ goBack $ resetScores ui
                     (VtyEvent (V.EvKey (V.KChar 'B') []))   -> continue $ goBack $ resetScores ui
                     _   ->  continue ui
@@ -376,41 +352,46 @@ handleEvent ui event =
                         goBack ui' = ui' & status .~ 1
         _   ->  halt ui
 
+-- Reset the locations of the bars and the ball, and both players' scores
 resetScores :: UI -> UI
 resetScores ui = UI
     { _game             = Game { _scorePlayerOne = 0, _scorePlayerTwo = 0 }
     , _barPlayerOne     = Location (1, 9)
     , _barPlayerTwo     = Location (76, 9)
     , _ball             = Location (39, 12)
-    , _xBall            = ui ^. xBall                    --newX randomNumber
+    , _xBall            = ui ^. xBall
     , _yBall            = ui ^. yBall
     , _status           = ui ^. status
     , _previousStatus   = ui ^. previousStatus
     , _level            = ui ^. level
     }
 
+--Moves player one's bar to the bottom when S key is pressed
 playerOneMoveDown :: UI -> UI
 playerOneMoveDown ui =
     if (ui ^. barPlayerOne . locationRowL) < 18
         then ui & barPlayerOne . locationRowL %~ (+ 1)
         else ui
-    
+
+--Moves player one's bar to the top when W key is pressed
 playerOneMoveUp :: UI -> UI
 playerOneMoveUp ui =
     if (ui ^. barPlayerOne . locationRowL) > 0
         then ui & barPlayerOne . locationRowL %~ subtract 1
         else ui
 
+--Pause the game
 pauseGame :: UI -> UI
 pauseGame ui =
     ui & status .~ 0
 
---  Edita "level" para modificar el delay.
+--  Edit the 'levle' attribute to set the time delay
 setLevel :: UI -> Int -> Int -> EventM n (Next UI)
 setLevel ui lvl mode = do
     liftIO $ atomically $ writeTVar (ui ^. level) lvl
     continue $ ui & status .~ mode
 
+--This map defines the styles for every game element
 theMap :: AttrMap
 theMap = attrMap
     V.defAttr
@@ -418,8 +399,7 @@ theMap = attrMap
     ,   (ballAttr   , V.white `on` V.white)
     ]
 
-
-
+--Initializes both players scores on 0 
 initGame :: IO Game
 initGame = 
     pure $ Game
@@ -427,14 +407,11 @@ initGame =
         ,   _scorePlayerTwo = 0
         }
 
-initialSpeed :: Int
-initialSpeed = 200000
-
+--Creates the custom main with the initial UI and delay
 playGame :: IO Game
 playGame = do
-    --  let delay = 200000
     chan <- newBChan 10
-    tv   <- atomically $ newTVar initialSpeed
+    tv   <- atomically $ newTVar 0
     _ <- forkIO $ forever $ do
         writeBChan chan Tick
         int <- readTVarIO tv
@@ -442,10 +419,9 @@ playGame = do
     initialGame <- initGame
     let buildVty = V.mkVty V.defaultConfig
     initialVty <- buildVty
-    xRand <- randomRIO (0,1) 
-    yRand <- randomRIO (0,1) 
+    xRand <- randomRIO (0,1)                                             -- Gets a random number between 0 and 1
+    yRand <- randomRIO (0,1)                                             -- Gets another random number between 0 and 1
     ui <- customMain initialVty buildVty (Just chan) app UI
-    --ui <- defaultMain app $ UI
         { _game             = initialGame
         , _barPlayerOne     = Location (1, 9)
         , _barPlayerTwo     = Location (76, 9)
@@ -457,16 +433,15 @@ playGame = do
         , _level            = tv
         }
     return $ ui ^. game
-    --  g <- withBorderStyle unicode $
-    --  borderWithLabel (str "Pong") $
-    --  (center (str " ") <+> vBorder <+> center (str " "))
 
+--Returns a Xvalue according to the random number given
 newX :: Int -> Xvalue
 newX xRand = 
     if xRand == 0
         then Derecha
         else Izquierda
 
+--Returns a Yvalue according to the random number given
 newY :: Int -> Yvalue
 newY yRand = 
     if yRand == 0

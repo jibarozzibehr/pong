@@ -1,7 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TupleSections #-}
 
 module UI where
 
@@ -12,21 +10,25 @@ import Brick.Widgets.Border.Style
 import Control.Lens
 import Control.Concurrent.STM
 
+--From now on we will use Name instead of ()
 type Name = ()
 
+--Players' scores are stored here
 data Game = Game
     {   _scorePlayerOne :: Int
     ,   _scorePlayerTwo :: Int
-    } deriving (Eq, Show)
+    }
 makeLenses ''Game
 
+--Ball directions in the X axis
 data Xvalue = Derecha | Izquierda
-    deriving (Eq, Show)
+    deriving (Eq)
+
+--Ball directions in the Y axis
 data Yvalue = Arriba | Abajo
-    deriving (Eq, Show)
+    deriving (Eq)
 
-
-
+--To control time steps
 data Tick = Tick
 
 data UI = UI
@@ -36,13 +38,14 @@ data UI = UI
     ,   _ball               :: Location
     ,   _xBall              :: Xvalue
     ,   _yBall              :: Yvalue
-    ,   _status             :: Int      --  0: Pausa, 1: Inicio, 2: Elegir nivel, 3: Jugando
-    ,   _previousStatus     :: Int      --  1 por defecto. Se usa para poner en pausa el juego y volver al mismo.
-    ,   _level              :: TVar Int
+    ,   _status             :: Int      --  0: Paused, 1: mainScreen, 2: selectClassicLevel, 3: Playing classic mode, 4: selectMachineLevel, 5: Playing against the machine, 
+                                        --  6: selectWallLevel, 7: Playing against the Wall, 8 to 10: Game over screens, 11: Instructions
+    ,   _previousStatus     :: Int
+    ,   _level              :: TVar Int --Speed of the ball
     }
 makeLenses ''UI
 
-
+--Diferents screens that are used in the game
 drawUI :: UI -> [Widget Name]
 drawUI ui   =
     case ui ^. status of
@@ -98,7 +101,6 @@ drawUI ui   =
                 $ withBorderStyle unicode
                 $ borderWithLabel (str "Pong")
                 $ padBottom Max
-                --  $ padTop (Pad 1)
                 $ hCenter (str "Score: " <+> str (show $ ui ^. game . scorePlayerOne))
 
             mainScreen          =
@@ -145,7 +147,6 @@ drawUI ui   =
                 $ padTopBottom 1
                 $ padBottom (Pad 1) (hCenter $ str "\nPlay against the")
                 <=> hCenter wallTitle
-                -- <=> (hCenter $ str "\nWill you ever win?")
                 <=> hCenter (str "\n\n\n\nChoose ball speed:")
                 <=> padBottom Max (hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
 
@@ -158,7 +159,6 @@ drawUI ui   =
                 $ padTopBottom 2
                 $ hCenter gameOverTitle
                 <=> center (getClassicWinner ui')
-                --(str "Final score: " <+> str (show (ui ^. game . scorePlayerOne)))
                 <=> hCenter (padBottom Max (str "\n\n\n(b): Main menu"))
 
             gameOverMachine ui' = 
@@ -200,17 +200,19 @@ drawUI ui   =
                 $ str "\n  (w) -> Player One bar up  \n  (s) -> Player One bar down  \n\n  (↑ ) -> Player Two bar up  \n  (↓ ) -> Player Two bar down  \n\n  (p) -> Pause game  \n  (q) -> Quit game  \n  (b) -> Go back  \n\n"
 
 
-
+--Here we return the winner of the classic mode and show it in the screen
 getClassicWinner :: UI -> Widget Name
 getClassicWinner ui
     |   ui ^. game . scorePlayerOne > ui ^. game . scorePlayerTwo   = hCenter (str "\n\n\n\nPlayer One wins!\n\n") <=> hCenter (str (show (ui ^. game . scorePlayerOne)) <+> str " - " <+> str (show (ui ^. game . scorePlayerTwo)))
     |   otherwise   = hCenter (str "\n\n\n\nPlayer Two wins!\n\n") <=> hCenter (str (show (ui ^. game . scorePlayerOne)) <+> str " - " <+> str (show (ui ^. game . scorePlayerTwo)))
 
+--Here we return the winner of the 'against the machine' mode and show it in the screen
 getMachineWinner :: UI -> Widget Name
 getMachineWinner ui
     |   ui ^. game . scorePlayerOne > ui ^. game . scorePlayerTwo   = hCenter (str "\n\n\n\nPlayer One wins!\n\n") <=> hCenter (str (show (ui ^. game . scorePlayerOne)) <+> str " - " <+> str (show (ui ^. game . scorePlayerTwo)))
     |   otherwise   = hCenter (str "\n\n\n\nThe machine wins!\n\n") <=> hCenter (str (show (ui ^. game . scorePlayerTwo)) <+> str " - " <+> str (show (ui ^. game . scorePlayerOne)))
 
+--Diferents ASCII Arts used in the game
 pongTitle, classicTitle, machineTitle, wallTitle, gameOverTitle, joystickArt :: Widget Name
 pongTitle       = str "         _               _                _                   _        \n        /\\ \\            /\\ \\             /\\ \\     _          /\\ \\      \n       /  \\ \\          /  \\ \\           /  \\ \\   /\\_\\       /  \\ \\     \n      / /\\ \\ \\        / /\\ \\ \\         / /\\ \\ \\_/ / /      / /\\ \\_\\    \n     / / /\\ \\_\\      / / /\\ \\ \\       / / /\\ \\___/ /      / / /\\/_/    \n    / / /_/ / /     / / /  \\ \\_\\     / / /  \\/____/      / / / ______  \n   / / /__\\/ /     / / /   / / /    / / /    / / /      / / / /\\_____\\ \n  / / /_____/     / / /   / / /    / / /    / / /      / / /  \\/____ / \n / / /           / / /___/ / /    / / /    / / /      / / /_____/ / /  \n/ / /           / / /____\\/ /    / / /    / / /      / / /______\\/ /   \n\\/_/            \\/_________/     \\/_/     \\/_/       \\/___________/     \n"
 classicTitle    = str "░█████╗░██╗░░░░░░█████╗░░██████╗░██████╗██╗░█████╗░\n██╔══██╗██║░░░░░██╔══██╗██╔════╝██╔════╝██║██╔══██╗\n██║░░╚═╝██║░░░░░███████║╚█████╗░╚█████╗░██║██║░░╚═╝\n██║░░██╗██║░░░░░██╔══██║░╚═══██╗░╚═══██╗██║██║░░██╗\n╚█████╔╝███████╗██║░░██║██████╔╝██████╔╝██║╚█████╔╝\n░╚════╝░╚══════╝╚═╝░░╚═╝╚═════╝░╚═════╝░╚═╝░╚════╝░"
@@ -221,21 +223,25 @@ joystickArt     =
     translateBy (Location (45, 6))
     $ str "            __           \n           (  )          \n            ||           \n            ||           \n        ___|\"\"|__.._     \n       /____________\\    \n       \\____________/~~~."
 
+--Player two's bar
 rightBar :: UI -> Widget Name
 rightBar ui =
     translateBy (ui ^. barPlayerTwo) $
     border $ str " \n \n \n "
 
+--Player one's bar
 leftBar :: UI -> Widget Name
 leftBar ui =
     translateBy (ui ^. barPlayerOne) $
     border $ str " \n \n \n "
-    
+
+--The ball itself
 ballDraw :: UI -> Widget Name
 ballDraw ui =
     translateBy (ui ^. ball) $
     str "  "
 
+-- Diferents attributes to style the elements
 barAttr, ballAttr :: AttrName
 barAttr     = "barAttr"
 ballAttr    = "ballAttr"
