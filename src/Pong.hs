@@ -121,6 +121,10 @@ handleTickWall ui
                 where
                     uiHorizontal ui'= if (ui' ^. xBall) == Izquierda then ballLeft ui' else ballRight ui'
                     uiFinal ui' = if (ui' ^. yBall) == Arriba then ballUp $ uiHorizontal ui' else ballDown $ uiHorizontal ui'
+                    touchBarWall ui' = 
+                        if ((ui' ^. ball . locationRowL >= ui' ^. barPlayerOne . locationRowL) && (ui' ^. ball . locationRowL <= (ui' ^. barPlayerOne . locationRowL)+5)) && ((ui' ^. ball . locationColumnL >= ui' ^. barPlayerOne . locationColumnL) && (ui' ^. ball . locationColumnL <= (ui' ^. barPlayerOne . locationColumnL)+3))
+                            then ui' & xBall .~ Derecha
+                            else ui'
 
 -- Reset the locations of the bars and the ball when someone scores a point
 reset :: UI -> UI
@@ -144,11 +148,8 @@ touchBar ui
     |   otherwise = ui
 
 --Only verifies if the ball is touching the player's bar on the wall mode
-touchBarWall :: UI -> UI
-touchBarWall ui = 
-    if ((ui ^. ball . locationRowL >= ui ^. barPlayerOne . locationRowL) && (ui ^. ball . locationRowL <= (ui ^. barPlayerOne . locationRowL)+5)) && ((ui ^. ball . locationColumnL >= ui ^. barPlayerOne . locationColumnL) && (ui ^. ball . locationColumnL <= (ui ^. barPlayerOne . locationColumnL)+3))
-        then ui & xBall .~ Derecha
-        else ui
+--touchBarWall :: UI -> UI
+
 
 --Set the ball's directions to the bottom (Because is touching the top border)
 borderTop :: UI -> UI
@@ -385,7 +386,7 @@ pauseGame :: UI -> UI
 pauseGame ui =
     ui & status .~ 0
 
---  Edit the 'levle' attribute to set the time delay
+--  Edit the 'level' attribute to set the time delay
 setLevel :: UI -> Int -> Int -> EventM n (Next UI)
 setLevel ui lvl mode = do
     liftIO $ atomically $ writeTVar (ui ^. level) lvl
@@ -408,7 +409,7 @@ initGame =
         }
 
 --Creates the custom main with the initial UI and delay
-playGame :: IO UI
+playGame :: IO Game
 playGame = do
     chan <- newBChan 10
     tv   <- atomically $ newTVar 0
@@ -432,7 +433,7 @@ playGame = do
         , _previousStatus   = 1
         , _level            = tv
         }
-    return $ ui
+    return $ ui ^. game
 
 --Returns a Xvalue according to the random number given
 newX :: Int -> Xvalue
