@@ -32,7 +32,7 @@ data Yvalue = Arriba | Abajo
 data Tick = Tick
 
 data UI = UI
-    {   _game   :: Game
+    {   _game               :: Game
     ,   _barPlayerOne       :: Location
     ,   _barPlayerTwo       :: Location
     ,   _ball               :: Location

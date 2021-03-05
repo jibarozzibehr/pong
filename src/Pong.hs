@@ -50,7 +50,7 @@ handleTick ui
             if ui ^. game . scorePlayerTwo < 6                                       -- if this is the 7th point of the player, the game ends
                 then continue  $ reset $ pointTwo ui
                 else continue $ pointTwo $ ui & status .~ 8
-    |   ui ^. ball . locationColumnL > ui ^. barPlayerTwo . locationColumnL =        -- if player two scores a point
+    |   ui ^. ball . locationColumnL > ui ^. barPlayerTwo . locationColumnL =        -- if player one scores a point
             if ui ^. game . scorePlayerOne < 6                                       -- if this is the 7th point of the player, the game ends
                 then continue $ reset $ pointOne ui
                 else continue $ pointOne $ ui & status .~ 8
@@ -408,7 +408,7 @@ initGame =
         }
 
 --Creates the custom main with the initial UI and delay
-playGame :: IO Game
+playGame :: IO UI
 playGame = do
     chan <- newBChan 10
     tv   <- atomically $ newTVar 0
@@ -432,7 +432,7 @@ playGame = do
         , _previousStatus   = 1
         , _level            = tv
         }
-    return $ ui ^. game
+    return $ ui
 
 --Returns a Xvalue according to the random number given
 newX :: Int -> Xvalue
