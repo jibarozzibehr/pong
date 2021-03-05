@@ -122,8 +122,9 @@ drawUI ui   =
                 $ border
                 $ padTopBottom 1
                 $ hCenter classicTitle
-                <=> hCenter (str "The Pong version you already know. 1v1.")
-                <=> hCenter (str "\n\n\n\n\nChoose ball speed:")
+                <=> hCenter (str "The Pong version you already know.")
+                <=> hCenter (str "\nThe first player to score 7 points wins!")
+                <=> hCenter (str "\n\n\nChoose ball speed:")
                 <=> padBottom Max (hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
 
             selectMachineLevel  =
@@ -135,7 +136,8 @@ drawUI ui   =
                 $ padTopBottom 1
                 $ hCenter machineTitle
                 <=> hCenter (str "\nWill you ever win?")
-                <=> hCenter (str "\n\n\n\nChoose ball speed:")
+                <=> hCenter (str "\nThe first to score 7 points wins!")
+                <=> hCenter (str "\n\nChoose ball speed:")
                 <=> padBottom Max (hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
 
             selectWallLevel     =
@@ -147,7 +149,8 @@ drawUI ui   =
                 $ padTopBottom 1
                 $ padBottom (Pad 1) (hCenter $ str "\nPlay against the")
                 <=> hCenter wallTitle
-                <=> hCenter (str "\n\n\n\nChoose ball speed:")
+                <=> hCenter (str "\nHit the wall as many times as you can!")
+                <=> hCenter (str "\n\n\nChoose ball speed:")
                 <=> padBottom Max (hCenter (str "\n(1): Slow\n(2): Medium\n(3): Fast!\n\n(b): Go back"))
 
             gameOverClassic ui' = 
